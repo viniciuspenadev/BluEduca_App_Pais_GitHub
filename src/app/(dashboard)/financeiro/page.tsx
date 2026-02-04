@@ -61,11 +61,12 @@ export default function FinancePage() {
 
     // Realtime Subscription
     useEffect(() => {
-        // We need an enrollment_id to subscribe safely. 
-        // We take it from the first installment if available, assuming all belong to the same enrollment context for this view.
-        const enrollmentId = installments.length > 0 ? installments[0].enrollment_id : null;
+        // Use stable enrollment ID from context instead of derived from volatile installments list
+        const enrollmentId = selectedStudent?.enrollment_id;
 
         if (!enrollmentId) return;
+
+        console.log(`🔌 [Financeiro] Conectando Realtime para matrícula: ${enrollmentId}`);
 
         const channel = supabase.channel(`installments:${enrollmentId}`)
             .on(
@@ -89,6 +90,9 @@ export default function FinancePage() {
                     // Trigger Success Feedback if status changed to paid
                     if (newInstallment.status === 'paid') {
                         setShowSuccess(true);
+                        // Refresh global alerts immediately to remove the red dot
+                        queryClient.invalidateQueries({ queryKey: ['alerts'] });
+
                         // Optional: Close details if open
                         if (selectedInstallment?.id === newInstallment.id) {
                             setSelectedInstallment(null);
@@ -99,9 +103,10 @@ export default function FinancePage() {
             .subscribe();
 
         return () => {
+            console.log('🔌 [Financeiro] Desconectando...');
             supabase.removeChannel(channel);
         };
-    }, [installments, queryClient, selectedStudent?.id, selectedYear, supabase, selectedInstallment]);
+    }, [queryClient, selectedStudent?.id, selectedStudent?.enrollment_id, selectedYear, supabase, selectedInstallment?.id]);
 
     // Filter Logic
     const { openItems, historyItems } = useMemo(() => {
