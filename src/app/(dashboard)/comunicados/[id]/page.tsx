@@ -397,10 +397,9 @@ export default function CommunicationDetailPage() {
 
             {/* Input Floating Bar */}
             <div
-                className="shrink-0 p-4 bg-white border-t border-gray-100 shadow-[0_-4px_20px_rgba(0,0,0,0.03)] z-[120]"
+                className="shrink-0 p-3 bg-white border-t border-gray-100 z-[120]"
                 style={{
-                    paddingBottom: keyboardHeight > 0 ? '12px' : 'calc(env(safe-area-inset-bottom) + 12px)',
-                    transform: `translateY(-${keyboardHeight}px)`
+                    paddingBottom: keyboardHeight > 0 ? '12px' : 'calc(env(safe-area-inset-bottom) + 8px)'
                 }}
             >
                 <div className="max-w-2xl mx-auto w-full pointer-events-auto">
@@ -424,48 +423,45 @@ export default function CommunicationDetailPage() {
                         )}
                     </AnimatePresence>
 
-                    <div className="bg-white/95 backdrop-blur-2xl rounded-[32px] p-2 pr-2.5 pl-3 border border-white/50 shadow-[0_10px_40px_rgba(0,0,0,0.12)] flex items-end gap-2 group focus-within:ring-2 focus-within:ring-blue-100 transition-all">
+                    <div className="bg-gray-50 rounded-[28px] p-1.5 flex items-center gap-2 border border-gray-100 transition-all">
                         <button
                             onClick={() => setIsEmojiPickerOpen(!isEmojiPickerOpen)}
                             className={clsx(
-                                "p-3 rounded-2xl transition-all active:scale-90",
-                                isEmojiPickerOpen ? "bg-blue-50 text-blue-600" : "text-gray-400 hover:bg-gray-50"
+                                "flex-shrink-0 w-10 h-10 flex items-center justify-center rounded-full transition-all active:scale-90",
+                                isEmojiPickerOpen ? "bg-blue-100 text-blue-600" : "text-gray-400"
                             )}
                         >
-                            <Smile size={24} strokeWidth={2.5} />
+                            <Smile size={22} strokeWidth={2.5} />
                         </button>
 
-                        <div className="flex-1 min-h-[48px] flex items-center py-2">
+                        <div className="flex-1 min-w-0">
                             <textarea
                                 value={replyText}
                                 onChange={(e) => setReplyText(e.target.value)}
                                 placeholder="Sua resposta..."
-                                className="flex-1 bg-transparent border-none focus:ring-0 resize-none max-h-32 text-sm text-gray-800 placeholder-gray-400 font-bold py-1 px-1"
+                                className="w-full bg-transparent border-none focus:ring-0 resize-none py-2 text-sm text-gray-800 placeholder-gray-400 font-bold"
                                 rows={1}
                                 spellCheck={false}
                                 autoComplete="off"
                                 autoCorrect="off"
-                                autoCapitalize="sentences"
+                                autoCapitalize="none"
                             />
                         </div>
 
-                        <div className="shrink-0">
-                            <button
-                                onClick={() => replyMutation.mutate(replyText)}
-                                disabled={isLoading || replyMutation.isPending || !replyText.trim()}
-                                className={clsx(
-                                    "w-12 h-12 flex items-center justify-center rounded-2xl text-white shadow-lg transition-all active:scale-95 disabled:opacity-30 disabled:grayscale",
-                                    theme.gradient,
-                                    theme.shadow
-                                )}
-                            >
-                                {replyMutation.isPending ? (
-                                    <Loader2 size={20} className="animate-spin" />
-                                ) : (
-                                    <Send size={20} className="ml-0.5" strokeWidth={3} />
-                                )}
-                            </button>
-                        </div>
+                        <button
+                            onClick={() => replyMutation.mutate(replyText)}
+                            disabled={isLoading || replyMutation.isPending || !replyText.trim()}
+                            className={clsx(
+                                "flex-shrink-0 w-10 h-10 flex items-center justify-center rounded-full text-white transition-all active:scale-95 disabled:opacity-30",
+                                theme.gradient
+                            )}
+                        >
+                            {replyMutation.isPending ? (
+                                <Loader2 size={18} className="animate-spin" />
+                            ) : (
+                                <Send size={18} className="translate-x-0.5" strokeWidth={3} />
+                            )}
+                        </button>
                     </div>
                 </div>
             </div>
