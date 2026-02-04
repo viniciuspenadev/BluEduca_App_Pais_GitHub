@@ -23,7 +23,7 @@ export const QuickActions = () => {
     const items = [
         { label: 'Cronograma', icon: Clock, link: '/cronograma', color: 'text-brand-600', bg: 'bg-brand-50', disabled: false },
         { label: 'Mensagens', icon: MessageCircle, link: '/comunicados', badge: alerts.messages, color: 'text-brand-600', bg: 'bg-brand-50', disabled: false },
-        { label: 'Financeiro', icon: CreditCard, link: '/financeiro', color: 'text-brand-600', bg: 'bg-brand-50', disabled: false },
+        { label: 'Financeiro', icon: CreditCard, link: '/financeiro', badge: alerts.financial, color: 'text-brand-600', bg: 'bg-brand-50', disabled: false },
         { label: 'Boletim', icon: GraduationCap, link: '/boletim', color: 'text-brand-600', bg: 'bg-brand-50', disabled: false },
     ];
 

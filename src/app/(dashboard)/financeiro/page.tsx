@@ -10,6 +10,10 @@ import { CreditCard, History, ArrowLeft } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { format } from 'date-fns';
 import clsx from 'clsx';
+import { useQueryClient } from '@tanstack/react-query';
+import { useEffect, useRef } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { CheckCircle2 } from 'lucide-react';
 
 const fetchFinancials = async (studentId: string, year: number) => {
     const supabase = createClient();
@@ -43,6 +47,9 @@ export default function FinancePage() {
     const [selectedYear, setSelectedYear] = useState<number>(new Date().getFullYear());
     const [activeTab, setActiveTab] = useState<'open' | 'history'>('open');
     const [selectedInstallment, setSelectedInstallment] = useState<Installment | null>(null);
+    const [showSuccess, setShowSuccess] = useState(false);
+    const queryClient = useQueryClient();
+    const supabase = createClient();
 
     // Fetch Installments
     const { data: installments = [], isLoading, isError } = useQuery({
@@ -51,6 +58,50 @@ export default function FinancePage() {
         enabled: !!selectedStudent,
         placeholderData: (previousData) => previousData,
     });
+
+    // Realtime Subscription
+    useEffect(() => {
+        // We need an enrollment_id to subscribe safely. 
+        // We take it from the first installment if available, assuming all belong to the same enrollment context for this view.
+        const enrollmentId = installments.length > 0 ? installments[0].enrollment_id : null;
+
+        if (!enrollmentId) return;
+
+        const channel = supabase.channel(`installments:${enrollmentId}`)
+            .on(
+                'postgres_changes',
+                {
+                    event: 'UPDATE',
+                    schema: 'public',
+                    table: 'installments',
+                    filter: `enrollment_id=eq.${enrollmentId}`
+                },
+                (payload) => {
+                    const newInstallment = payload.new as Installment;
+
+                    // Optimistic Update
+                    queryClient.setQueryData(['financials', selectedStudent?.id, selectedYear], (old: Installment[] = []) => {
+                        return old.map(item =>
+                            item.id === newInstallment.id ? { ...item, ...newInstallment } : item
+                        );
+                    });
+
+                    // Trigger Success Feedback if status changed to paid
+                    if (newInstallment.status === 'paid') {
+                        setShowSuccess(true);
+                        // Optional: Close details if open
+                        if (selectedInstallment?.id === newInstallment.id) {
+                            setSelectedInstallment(null);
+                        }
+                    }
+                }
+            )
+            .subscribe();
+
+        return () => {
+            supabase.removeChannel(channel);
+        };
+    }, [installments, queryClient, selectedStudent?.id, selectedYear, supabase, selectedInstallment]);
 
     // Filter Logic
     const { openItems, historyItems } = useMemo(() => {
@@ -217,6 +268,39 @@ export default function FinancePage() {
                 onClose={() => setSelectedInstallment(null)}
                 installment={selectedInstallment}
             />
+
+            {/* Success Overlay - Instant Payment Feedback */}
+            <AnimatePresence>
+                {showSuccess && (
+                    <motion.div
+                        initial={{ opacity: 0, scale: 0.9 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        exit={{ opacity: 0, scale: 0.9 }}
+                        className="fixed inset-0 z-[300] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
+                        onClick={() => setShowSuccess(false)}
+                    >
+                        <motion.div
+                            initial={{ y: 20 }}
+                            animate={{ y: 0 }}
+                            className="bg-white rounded-3xl p-8 flex flex-col items-center text-center shadow-2xl max-w-xs w-full"
+                        >
+                            <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mb-6 text-green-600">
+                                <CheckCircle2 size={48} strokeWidth={3} />
+                            </div>
+                            <h3 className="text-2xl font-black text-slate-900 mb-2">Pagamento Confirmado!</h3>
+                            <p className="text-slate-500 font-medium mb-6 leading-relaxed">
+                                Recebemos a baixa do pagamento em tempo real. Tudo certo! 🚀
+                            </p>
+                            <button
+                                onClick={() => setShowSuccess(false)}
+                                className="w-full bg-slate-900 text-white font-bold py-3.5 rounded-xl hover:bg-slate-800 transition-colors"
+                            >
+                                Fechar
+                            </button>
+                        </motion.div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
         </div>
     );
 }

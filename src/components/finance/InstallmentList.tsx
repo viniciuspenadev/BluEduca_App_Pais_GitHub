@@ -93,16 +93,13 @@ export const InstallmentList = ({ items, onItemClick, emptyMessage = "Nenhuma fa
                 const dueDate = new Date(item.due_date + 'T12:00:00');
 
                 return (
-                    <motion.div
-                        initial={{ opacity: 0, y: 10 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: index * 0.05 }}
+                    <div
                         key={item.id}
                         onClick={() => onItemClick(item)}
                         className={clsx(
-                            "relative overflow-hidden p-5 rounded-2xl border transition-all cursor-pointer bg-white group",
+                            "relative overflow-hidden p-5 rounded-2xl border transition-all cursor-pointer bg-white group hover:shadow-md",
                             isOverdue
-                                ? "border-red-100 shadow-sm shadow-red-500/5 ring-1 ring-red-50"
+                                ? "border-red-200 shadow-sm shadow-red-500/10 ring-1 ring-red-100"
                                 : "border-slate-100 hover:border-brand-200"
                         )}
                     >
@@ -157,7 +154,7 @@ export const InstallmentList = ({ items, onItemClick, emptyMessage = "Nenhuma fa
                                 )}
                             </div>
                         </div>
-                    </motion.div>
+                    </div>
                 );
             })}
         </div>

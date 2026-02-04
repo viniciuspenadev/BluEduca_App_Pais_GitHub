@@ -217,7 +217,7 @@ export const useAlerts = () => {
                         .select('id', { count: 'exact' })
                         .eq('enrollment_id', enrollment.id)
                         .eq('status', 'pending')
-                        .lt('due_date', today);
+                        .lte('due_date', today); // Include TODAY in the alert
 
                     if (pendingLate) finCount += pendingLate;
                 }
