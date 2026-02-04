@@ -8,7 +8,7 @@ import { DailyTimeline } from '@/components/dashboard/DailyTimeline';
 import { DashboardFeed, type FeedItemData } from '@/components/dashboard/Feed';
 import { QuickActions } from '@/components/dashboard/QuickActions';
 import { createClient } from '@/utils/supabase/client';
-import { format } from 'date-fns';
+
 import { User, LogOut } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
@@ -20,59 +20,50 @@ const fetchDashboardData = async (studentId: string | undefined, enrollmentId: s
     if (!studentId || !enrollmentId) return null;
 
     const supabase = createClient();
-    const todayStr = format(new Date(), 'yyyy-MM-dd');
-    const startOfDay = new Date();
-    startOfDay.setHours(0, 0, 0, 0);
+
+    // Call the RPC
+    const { data, error } = await supabase.rpc('get_parent_dashboard_summary', {
+        p_student_id: studentId,
+        p_enrollment_id: enrollmentId,
+        p_class_id: classId || null
+    });
+
+    if (error) {
+        console.error('Error fetching dashboard summary:', error);
+        return null;
+    }
+
+    // Access the first row (RPC returns a table, even if 1 row)
+    const result = (Array.isArray(data) && data.length > 0) ? data[0] : null;
+    if (!result) return null;
 
     const banners: SmartBannerData[] = [];
 
-    // 1. Check Overdue Finance
-    const { data: overdue } = await supabase
-        .from('installments')
-        .select('*')
-        .eq('enrollment_id', enrollmentId)
-        .eq('status', 'pending')
-        .lt('due_date', todayStr)
-        .limit(1);
-
-    if (overdue && overdue.length > 0) {
+    // 1. Process Overdue Finance
+    if (result.overdue_finance && result.overdue_finance.length > 0) {
         banners.push({
             type: 'finance-overdue',
             title: 'Mensalidade em Atraso',
-            message: `Fatura de R$ ${overdue[0].value} venceu.`,
+            message: `Fatura de R$ ${result.overdue_finance[0].value} venceu.`,
             actionLabel: 'Pagar Agora',
             actionLink: '/financeiro'
         });
     }
 
-    // 2. Events Today
-    const { data: eventsToday } = await supabase
-        .from('events')
-        .select('*')
-        .gte('start_time', startOfDay.toISOString())
-        .lt('start_time', new Date(startOfDay.getTime() + 86400000).toISOString())
-        .limit(1);
-
-    if (eventsToday && eventsToday.length > 0) {
+    // 2. Process Events Today
+    if (result.events_today && result.events_today.length > 0) {
         banners.push({
             type: 'event-today',
-            title: eventsToday[0].title,
-            message: eventsToday[0].location ? `Local: ${eventsToday[0].location}` : 'Confira os detalhes na agenda.',
+            title: result.events_today[0].title,
+            message: result.events_today[0].location ? `Local: ${result.events_today[0].location}` : 'Confira os detalhes na agenda.',
             actionLabel: 'Ver Agenda',
             actionLink: '/cronograma'
         });
     }
 
-    // 3. Mural Highlights
-    const { data: muralHighlights } = await supabase
-        .from('events')
-        .select('*')
-        .eq('show_on_mural', true)
-        .order('start_time', { ascending: false })
-        .limit(5);
-
-    if (muralHighlights) {
-        muralHighlights.forEach(h => {
+    // 3. Process Mural Highlights
+    if (result.mural_highlights && result.mural_highlights.length > 0) {
+        result.mural_highlights.forEach((h: any) => {
             banners.push({
                 type: 'mural-highlight',
                 title: h.title,
@@ -84,24 +75,17 @@ const fetchDashboardData = async (studentId: string | undefined, enrollmentId: s
         });
     }
 
-    // 4. Daily Highlights
-    const { data: todayDiary } = await supabase
-        .from('daily_reports')
-        .select('*')
-        .eq('student_id', studentId)
-        .eq('date', todayStr)
-        .maybeSingle();
-
+    // 4. Process Daily Highlights
     const dailyHighlights = {
-        hasData: !!todayDiary,
+        hasData: !!result.daily_report?.id,
         food: 'Sem dados',
         sleep: 'Sem dados',
         mood: 'Sem dados',
         bathroom: 'Sem dados'
     };
 
-    if (todayDiary && todayDiary.routine_data) {
-        const r = todayDiary.routine_data as any;
+    if (result.daily_report?.routine_data) {
+        const r = result.daily_report.routine_data;
         dailyHighlights.mood = r.mood || 'Sem dados';
         if (r.meals) {
             dailyHighlights.food = r.meals.lunch || r.meals.snack || 'Sem dados';
@@ -110,16 +94,8 @@ const fetchDashboardData = async (studentId: string | undefined, enrollmentId: s
         if (r.hygiene) dailyHighlights.bathroom = typeof r.hygiene === 'object' ? r.hygiene.status : r.hygiene;
     }
 
-    // 5. Feed
-    const { data: muralEvents } = await supabase
-        .from('events')
-        .select('*')
-        .or(`is_pinned.eq.true,start_time.gte.${todayStr}T00:00:00`)
-        .order('is_pinned', { ascending: false })
-        .order('start_time', { ascending: true })
-        .limit(10);
-
-    const feed = (muralEvents || []).map((event: any) => ({
+    // 5. Process Feed
+    const feed = (result.feed_items || []).map((event: any) => ({
         id: event.id,
         type: event.category || 'event',
         title: event.title,
@@ -129,39 +105,26 @@ const fetchDashboardData = async (studentId: string | undefined, enrollmentId: s
         isClassSpecific: !!event.class_id,
         is_pinned: event.is_pinned,
         location: event.location,
-        eventType: event.type
+        eventType: event.event_type
     })) as FeedItemData[];
 
-    // 6. Today's Classes (for Timeline)
-    let todaysClasses: any[] = [];
-    if (classId) {
-        const { data: plans } = await supabase
-            .from('lesson_plans')
-            .select(`*, subject:subjects(*), teacher:profiles(*)`)
-            .eq('class_id', classId)
-            .gte('date', todayStr)
-            .lte('date', todayStr)
-            .order('start_time');
-
-        if (plans) {
-            todaysClasses = plans.map((p: any) => ({
-                id: p.id,
-                title: p.subject?.name || 'Aula',
-                description: '',
-                start_time: p.start_time?.slice(0, 5),
-                end_time: p.end_time?.slice(0, 5),
-                type: 'academic',
-                color: p.subject?.color, // Assuming subject has color
-                // Details
-                topic: p.topic,
-                objective: p.objective,
-                materials: p.materials,
-                homework: p.homework,
-                teacher_name: p.teacher?.name,
-                order_index: 0
-            }));
-        }
-    }
+    // 6. Process Today's Classes (Timeline)
+    const todaysClasses = (result.today_classes || []).map((p: any) => ({
+        id: p.id,
+        title: p.subject_name || 'Aula',
+        description: '',
+        start_time: p.start_time?.slice(0, 5),
+        end_time: p.end_time?.slice(0, 5),
+        type: 'academic',
+        color: p.subject_color,
+        // Details
+        topic: p.topic,
+        objective: p.objective,
+        materials: p.materials,
+        homework: p.homework,
+        teacher_name: p.teacher_name,
+        order_index: 0
+    }));
 
     return { smartBanners: banners, dailyHighlights, feed, todaysClasses };
 };

@@ -41,13 +41,20 @@ export const DigitalStudentId = ({ student, schoolYear, schoolName = "Escola Par
 
     return (
         <div
-            className="perspective-1000 w-full max-w-sm mx-auto h-56 cursor-pointer group select-none"
+            className="w-full max-w-sm mx-auto h-56 cursor-pointer group select-none"
             onClick={() => setIsFlipped(!isFlipped)}
+            style={{ perspective: '1000px' }}
         >
-            <div className={`relative w-full h-full transition-all duration-700 transform preserve-3d ${isFlipped ? 'rotate-y-180' : ''}`}>
+            <div
+                className={`relative w-full h-full transition-all duration-700 transform ${isFlipped ? 'rotate-y-180' : ''}`}
+                style={{ transformStyle: 'preserve-3d' }}
+            >
 
                 {/* FRONT */}
-                <div className="absolute inset-0 w-full h-full backface-hidden rounded-2xl overflow-hidden shadow-xl border border-white/20">
+                <div
+                    className="absolute inset-0 w-full h-full rounded-2xl overflow-hidden shadow-xl border border-white/20"
+                    style={{ backfaceVisibility: 'hidden', WebkitBackfaceVisibility: 'hidden' }}
+                >
                     {/* Background Art */}
                     <div className="absolute inset-0 bg-gradient-to-br from-brand-600 to-brand-800">
                         <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full blur-2xl -mr-10 -mt-10" />
@@ -117,7 +124,10 @@ export const DigitalStudentId = ({ student, schoolYear, schoolName = "Escola Par
                 </div>
 
                 {/* BACK */}
-                <div className="absolute inset-0 w-full h-full backface-hidden rotate-y-180 rounded-2xl overflow-hidden shadow-xl bg-slate-900 border border-slate-700 text-white p-4 flex flex-col items-center justify-center text-center">
+                <div
+                    className="absolute inset-0 w-full h-full rotate-y-180 rounded-2xl overflow-hidden shadow-xl bg-slate-900 border border-slate-700 text-white p-4 flex flex-col items-center justify-center text-center"
+                    style={{ backfaceVisibility: 'hidden', WebkitBackfaceVisibility: 'hidden' }}
+                >
                     {/* Subtle Background Pattern */}
                     <div className="absolute inset-0 opacity-10 pointer-events-none">
                         <div className="absolute top-0 right-0 w-full h-full bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-white/10 to-transparent" />

@@ -72,34 +72,85 @@ export async function getStudentFullProfile(studentId: string) {
 
     const student = guardianLink.student;
 
-    // 2. Fetch Enrollment separately
-    const { data: enrollment, error: enrollmentError } = await supabase
+    // 2. Fetch All Enrollments (to check finance across all history)
+    const { data: enrollments, error: enrollmentError } = await supabase
         .from('enrollments')
-        .select('status, contract_signed_at, academic_year, details')
+        .select('id, status, contract_signed_at, academic_year, details, school_id, created_at')
         .eq('student_id', studentId)
-        .maybeSingle();
+        .order('created_at', { ascending: false });
 
     if (enrollmentError) {
-        console.warn('Error fetching enrollment:', enrollmentError);
+        console.warn('Error fetching enrollments:', enrollmentError);
     }
 
-    // 3. Determine Financial Status
-    let financialStatus = 'ok';
-    try {
-        // Mock check or real if table accessible (often blocked for parents directly)
-        // For now, assume ok if query fails, to not block UI
-        const { count: overdueCount } = await supabase
-            .from('installments')
-            .select('*', { count: 'exact', head: true })
-            .eq('student_id', studentId)
-            .eq('status', 'overdue');
+    const latestEnrollment = enrollments?.[0] || null;
 
-        if (overdueCount && overdueCount > 0) financialStatus = 'overdue';
-    } catch { }
+    // 3. Determine Financial Status (Check ALL enrollments)
+    let financialStatus = 'ok';
+    if (enrollments && enrollments.length > 0) {
+        try {
+            const enrollmentIds = enrollments.map(e => e.id);
+            console.log('🔍 [Profile] Checking Finance for Enrollments:', enrollmentIds);
+
+            // Fetch ALL installments (plain array, lighter payload)
+            const { data: installments } = await supabase
+                .from('installments')
+                .select('id, due_date, status')
+                .in('enrollment_id', enrollmentIds);
+
+            if (installments) {
+                console.log(`🔍 [Profile] Found ${installments.length} installments.`);
+
+                // Compare dates using Objects to be safe against Timezones/Formats
+                const today = new Date();
+                today.setHours(0, 0, 0, 0); // Midnight today
+
+                console.log('📅 [Profile] Comparison Date (Today Midnight):', today.toISOString());
+
+                const hasDebt = installments.some(item => {
+                    const isOverdue = item.status === 'overdue';
+
+                    let isPendingLate = false;
+                    if (item.status === 'pending' && item.due_date) {
+                        // Parse due_date. Append T00:00:00 if simple date string to prevent UTC shift
+                        // OR just split YYYY-MM-DD and construct local date.
+                        // Best way: treat the string YYYY-MM-DD as "Local Date" -> noon to be safe
+                        const dueDate = new Date(item.due_date + (item.due_date.includes('T') ? '' : 'T12:00:00'));
+                        dueDate.setHours(0, 0, 0, 0); // Midnight of due date
+
+                        isPendingLate = dueDate < today;
+
+                        if (isPendingLate) {
+                            console.log(`⚠️ [Profile] Late Pending detected. Due: ${dueDate.toISOString()} < Today: ${today.toISOString()}`);
+                        }
+                    }
+
+                    if (isOverdue || isPendingLate) {
+                        console.log(`⚠️ [Profile] FOUND DEBT! Item: ${item.id}, Status: ${item.status}, Due: ${item.due_date}`);
+                    }
+                    return isOverdue || isPendingLate;
+                });
+
+                if (hasDebt) financialStatus = 'overdue';
+            }
+        } catch (e) {
+            console.error('Error checking financial status', e);
+        }
+    }
+
+    // 4. Determine Document Status (Check latest enrollment primarily, or all?)
+    // Usually documents are per enrollment year. Let's check the latest one for the "Main" status.
+    let documentsStatus = 'ok';
+    if (latestEnrollment) {
+        const docs = latestEnrollment.details?.documents || {};
+        const hasRejected = Object.values(docs).some((d: any) => d.status === 'rejected');
+        if (hasRejected) documentsStatus = 'rejected';
+    }
 
     return {
         ...student,
         financialStatus,
-        currentEnrollment: enrollment || null
+        documentsStatus,
+        currentEnrollment: latestEnrollment
     };
 }
