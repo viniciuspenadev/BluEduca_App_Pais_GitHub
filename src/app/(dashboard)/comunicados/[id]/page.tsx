@@ -6,7 +6,7 @@ import { createClient } from '@/utils/supabase/client';
 import { useParams, useRouter } from 'next/navigation';
 import {
     ArrowLeft, Send, Smile, CalendarCheck, BarChart2, CheckCheck,
-    Loader2, Users, MessageSquare, Zap, Clock, Info
+    Loader2, Users, MessageSquare, Zap, Clock, Info, Flame
 } from 'lucide-react';
 import * as Icons from 'lucide-react';
 import { format } from 'date-fns';
@@ -60,6 +60,7 @@ export default function CommunicationDetailPage() {
     const queryClient = useQueryClient();
 
     const [replyText, setReplyText] = useState('');
+    const inputRef = useRef<HTMLDivElement>(null);
     const [isEmojiPickerOpen, setIsEmojiPickerOpen] = useState(false);
     const [isExiting, setIsExiting] = useState(false);
     const bottomRef = useRef<HTMLDivElement>(null);
@@ -147,6 +148,13 @@ export default function CommunicationDetailPage() {
         refetchInterval: 5000
     });
 
+    // Auto-scroll to bottom on load and new messages
+    useEffect(() => {
+        if (bottomRef.current) {
+            bottomRef.current.scrollIntoView({ behavior: 'smooth' });
+        }
+    }, [replies]);
+
     // Mutation
     const replyMutation = useMutation({
         mutationFn: async (text: string) => {
@@ -162,6 +170,7 @@ export default function CommunicationDetailPage() {
         },
         onSuccess: (newReply) => {
             setReplyText('');
+            if (inputRef.current) inputRef.current.innerText = '';
             setIsEmojiPickerOpen(false);
             queryClient.setQueryData(['replies', id], (old: ReplyMessage[] = []) => [...old, newReply]);
             setTimeout(() => bottomRef.current?.scrollIntoView({ behavior: 'smooth' }), 100);
@@ -242,6 +251,52 @@ export default function CommunicationDetailPage() {
                                         {format(new Date(recipient.communication.created_at), "dd MMM, HH:mm", { locale: ptBR })}
                                     </time>
                                 </div>
+
+                                {/* Status Tags / Badges */}
+                                <div className="flex flex-wrap gap-2 mb-4">
+                                    {/* Urgent Badge */}
+                                    {recipient.communication.priority === 2 && (
+                                        <div className="flex items-center gap-1 bg-rose-50 text-rose-600 px-2.5 py-1 rounded-lg border border-rose-100 text-[10px] font-bold uppercase tracking-widest">
+                                            <Zap size={12} strokeWidth={3} className="fill-rose-600" />
+                                            Urgente
+                                        </div>
+                                    )}
+
+                                    {/* Class Badge */}
+                                    {recipient.communication.target_type === 'CLASS' && recipient.student?.class_enrollments?.[0]?.class?.name && (
+                                        <div className="flex items-center gap-1 px-2.5 py-1 rounded bg-slate-100 text-slate-500 text-[10px] font-bold uppercase tracking-widest border border-slate-200/50">
+                                            <Users size={12} />
+                                            {recipient.student.class_enrollments[0].class.name}
+                                        </div>
+                                    )}
+
+                                    {/* Action Required / RSVP / Poll */}
+                                    {(recipient.communication.metadata?.template === 'rsvp' || recipient.communication.metadata?.template === 'poll') && (
+                                        <div className={clsx(
+                                            "flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase tracking-[0.1em] border",
+                                            recipient.response ? 'bg-emerald-50 text-emerald-600 border-emerald-100' : 'bg-amber-50 text-amber-600 border-amber-100'
+                                        )}>
+                                            {recipient.communication.metadata.template === 'rsvp' ? (
+                                                <CalendarCheck size={12} />
+                                            ) : (
+                                                <BarChart2 size={12} />
+                                            )}
+                                            {recipient.communication.metadata.template === 'rsvp'
+                                                ? (recipient.response ? 'Confirmado' : 'Responder RSVP')
+                                                : (recipient.response ? 'Votado' : 'Votar Agora')
+                                            }
+                                        </div>
+                                    )}
+
+                                    {/* Generic Action Pending (if not covered above) */}
+                                    {((recipient.communication.metadata?.template === 'rsvp' || recipient.communication.metadata?.template === 'poll') && !recipient.response) && (
+                                        <div className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-amber-50 text-amber-600 border border-amber-100 text-[10px] font-bold uppercase tracking-widest">
+                                            <Flame size={12} strokeWidth={2.5} />
+                                            Ação Pendente
+                                        </div>
+                                    )}
+                                </div>
+
                                 <h2 className="text-xl font-black text-gray-900 mb-4 leading-tight">
                                     {recipient.communication.title}
                                 </h2>
@@ -283,24 +338,33 @@ export default function CommunicationDetailPage() {
             {/* Input WhatsApp Style */}
             <div className="shrink-0 bg-white border-t border-gray-100 p-2 pb-[calc(12px+env(safe-area-inset-bottom))]">
                 <div className="max-w-xl mx-auto flex items-end gap-2">
-                    <div className="flex-1 bg-gray-100 rounded-[24px] px-3 py-1 flex items-end gap-2">
+                    <div className="flex-1 bg-gray-100 rounded-[26px] pl-2 pr-4 py-1 flex items-end gap-2 min-h-[44px]">
                         <button
                             onClick={() => setIsEmojiPickerOpen(!isEmojiPickerOpen)}
-                            className="w-10 h-10 flex items-center justify-center shrink-0 text-gray-400 active:text-blue-600 transition-colors"
+                            className="w-10 h-10 flex items-center justify-center shrink-0 text-gray-400 active:text-blue-600 transition-colors mb-0.5"
                         >
                             <Smile size={24} strokeWidth={2} />
                         </button>
 
-                        <textarea
-                            value={replyText}
-                            onChange={(e) => setReplyText(e.target.value)}
-                            placeholder="Sua resposta..."
-                            className="flex-1 bg-transparent border-none focus:ring-0 py-3 text-[15px] font-medium text-gray-800 placeholder-gray-400 resize-none max-h-32"
-                            rows={1}
-                            autoCorrect="off"
-                            autoComplete="off"
+                        <div
+                            ref={inputRef}
+                            contentEditable
+                            role="textbox"
+                            aria-multiline="true"
+                            className="flex-1 bg-transparent border-none focus:ring-0 active:ring-0 outline-none py-2.5 text-[15px] leading-relaxed font-medium text-gray-800 placeholder-gray-400 max-h-32 overflow-y-auto cursor-text empty:before:content-[attr(data-placeholder)] empty:before:text-gray-400"
+                            data-placeholder="Sua resposta..."
+                            onInput={(e) => setReplyText(e.currentTarget.innerText)}
+                            onKeyDown={(e) => {
+                                if (e.key === 'Enter' && !e.shiftKey) {
+                                    e.preventDefault();
+                                    if (replyText.trim()) replyMutation.mutate(replyText);
+                                }
+                            }}
+                            suppressContentEditableWarning={true}
+                            inputMode="text"
                             spellCheck={false}
-                            enterKeyHint="send"
+                            autoCorrect="off"
+                            autoCapitalize="sentences"
                         />
                     </div>
 
@@ -308,14 +372,14 @@ export default function CommunicationDetailPage() {
                         onClick={() => replyMutation.mutate(replyText)}
                         disabled={!replyText.trim() || replyMutation.isPending}
                         className={clsx(
-                            "w-11 h-11 flex items-center justify-center rounded-full text-white transition-all active:scale-95 disabled:grayscale disabled:opacity-40",
+                            "w-11 h-11 flex items-center justify-center rounded-full text-white transition-all active:scale-95 disabled:grayscale disabled:opacity-40 shadow-sm shrink-0",
                             theme.btn
                         )}
                     >
                         {replyMutation.isPending ? (
                             <Loader2 size={20} className="animate-spin" />
                         ) : (
-                            <Send size={20} className="translate-x-0.5" strokeWidth={3} />
+                            <Send size={18} strokeWidth={2.5} className="ml-0.5" />
                         )}
                     </button>
                 </div>
@@ -330,7 +394,10 @@ export default function CommunicationDetailPage() {
                             className="overflow-hidden bg-white mt-2"
                         >
                             <EmojiPicker
-                                onEmojiClick={(e) => setReplyText(prev => prev + e.emoji)}
+                                onEmojiClick={(e) => {
+                                    setReplyText(prev => prev + e.emoji);
+                                    if (inputRef.current) inputRef.current.innerText += e.emoji;
+                                }}
                                 width="100%"
                                 height={320}
                                 lazyLoadEmojis={true}
