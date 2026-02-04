@@ -56,13 +56,15 @@ export const InstallmentList = ({ items, onItemClick, emptyMessage = "Nenhuma fa
         dueDate.setHours(0, 0, 0, 0);
 
         if (dueDate < today) return 'overdue';
+        if (dueDate.getTime() === today.getTime()) return 'due_today';
         return item.status;
     };
 
     const StatusBadge = ({ status }: { status: string }) => {
         const config = {
             overdue: { label: 'Em Atraso', class: 'text-red-600 bg-red-50 border-red-100', icon: AlertCircle },
-            pending: { label: 'Aberto', class: 'text-amber-600 bg-amber-50 border-amber-100', icon: Clock },
+            due_today: { label: 'Vence Hoje', class: 'text-orange-600 bg-orange-50 border-orange-100', icon: Clock },
+            pending: { label: 'Aberto', class: 'text-brand-600 bg-brand-50 border-brand-100', icon: Clock },
             paid: { label: 'Pago', class: 'text-green-600 bg-green-50 border-green-100', icon: CheckCircle2 },
             cancelled: { label: 'Cancelado', class: 'text-gray-600 bg-gray-50 border-gray-100', icon: FileText }
         };
@@ -100,7 +102,9 @@ export const InstallmentList = ({ items, onItemClick, emptyMessage = "Nenhuma fa
                             "relative overflow-hidden p-5 rounded-2xl border transition-all cursor-pointer bg-white group hover:shadow-md",
                             isOverdue
                                 ? "border-red-200 shadow-sm shadow-red-500/10 ring-1 ring-red-100"
-                                : "border-slate-100 hover:border-brand-200"
+                                : effectiveStatus === 'due_today'
+                                    ? "border-[#F97316] shadow-sm shadow-[#F97316]/10 ring-1 ring-[#F97316]/20" // Hardcoded Hex shadow/ring
+                                    : "border-slate-100 hover:border-brand-200"
                         )}
                     >
                         <div className="flex justify-between items-start">
@@ -109,7 +113,8 @@ export const InstallmentList = ({ items, onItemClick, emptyMessage = "Nenhuma fa
                                     "w-12 h-12 rounded-xl flex items-center justify-center transition-colors",
                                     isPaid ? "bg-green-50 text-green-600" :
                                         isOverdue ? "bg-red-50 text-red-600" :
-                                            "bg-slate-50 text-slate-400 group-hover:bg-brand-50 group-hover:text-brand-600"
+                                            effectiveStatus === 'due_today' ? "bg-orange-50 text-orange-600" :
+                                                "bg-slate-50 text-slate-400 group-hover:bg-brand-50 group-hover:text-brand-600"
                                 )}>
                                     {isPaid ? <Receipt size={20} /> : <FileText size={20} />}
                                 </div>
@@ -132,7 +137,8 @@ export const InstallmentList = ({ items, onItemClick, emptyMessage = "Nenhuma fa
                                 <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest block">Valor</span>
                                 <span className={clsx(
                                     "text-xl font-bold tracking-tight",
-                                    isOverdue ? "text-red-600" : "text-slate-900"
+                                    isOverdue ? "text-red-600" :
+                                        effectiveStatus === 'due_today' ? "text-orange-600" : "text-slate-900"
                                 )}>
                                     {formatCurrency(item.value)}
                                 </span>
