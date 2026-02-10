@@ -16,8 +16,8 @@ import Image from 'next/image';
 import { useAppSettings } from '@/hooks/useAppSettings';
 
 // Fetch function extracted specifically for React Query
-const fetchDashboardData = async (studentId: string | undefined, enrollmentId: string | undefined, classId: string | undefined) => {
-    if (!studentId || !enrollmentId) return null;
+const fetchDashboardData = async (studentId: string | undefined, enrollmentId: string | undefined, classId: string | undefined, schoolId: string | undefined) => {
+    if (!studentId || !enrollmentId || !schoolId) return null;
 
     const supabase = createClient();
 
@@ -25,7 +25,8 @@ const fetchDashboardData = async (studentId: string | undefined, enrollmentId: s
     const { data, error } = await supabase.rpc('get_parent_dashboard_summary', {
         p_student_id: studentId,
         p_enrollment_id: enrollmentId,
-        p_class_id: classId || null
+        p_class_id: classId || null,
+        p_school_id: schoolId
     });
 
     if (error) {
@@ -142,7 +143,7 @@ export default function HomePage() {
     // Use React Query for data fetching - with 5min staleTime, this is usually instant
     const { data, isLoading: dashboardLoading } = useQuery({
         queryKey: ['dashboard', selectedStudent?.id],
-        queryFn: () => fetchDashboardData(selectedStudent?.id, selectedStudent?.enrollment_id, selectedStudent?.class_id),
+        queryFn: () => fetchDashboardData(selectedStudent?.id, selectedStudent?.enrollment_id, selectedStudent?.class_id, selectedStudent?.school_id),
         enabled: !!selectedStudent?.id,
         // Mantém os dados anteriores enquanto carrega os novos (evita piscar)
         placeholderData: (previousData) => previousData,
