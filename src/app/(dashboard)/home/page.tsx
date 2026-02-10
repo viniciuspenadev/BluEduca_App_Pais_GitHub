@@ -34,8 +34,7 @@ const fetchDashboardData = async (studentId: string | undefined, enrollmentId: s
     }
 
     // Access the first row (RPC returns a table, even if 1 row)
-    const result = (Array.isArray(data) && data.length > 0) ? data[0] : null;
-    if (!result) return null;
+    const result = (Array.isArray(data) && data.length > 0) ? data[0] : {};
 
     const banners: SmartBannerData[] = [];
 
@@ -149,9 +148,9 @@ export default function HomePage() {
         placeholderData: (previousData) => previousData,
     });
 
-    if (!selectedStudent) {
-        if (studentLoading) {
-            return <div className="p-12 flex justify-center"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-brand-500"></div></div>;
+    if (!selectedStudent || studentLoading || (dashboardLoading && !data)) {
+        if (studentLoading || dashboardLoading) {
+            return <div className="h-screen flex items-center justify-center"><div className="animate-spin rounded-full h-12 w-12 border-b-2 border-brand-600"></div></div>;
         }
         return <div className="p-8 text-center text-gray-500 uppercase text-xs font-bold tracking-widest">Selecione um aluno para continuar.</div>;
     }

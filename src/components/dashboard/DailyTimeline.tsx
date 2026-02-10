@@ -157,13 +157,13 @@ export const DailyTimeline: FC<DailyTimelineProps> = ({ classId, enrollmentId, e
                                     {/* Icon Circle */}
                                     <div
                                         className={clsx(
-                                            "w-8 h-8 rounded-full flex items-center justify-center mb-1.5 shadow-sm border-2 transition-all transform duration-500",
-                                            isCurrent ? 'border-green-500 shadow-green-200 scale-110 ring-2 ring-green-100' : 'border-white',
+                                            "w-9 h-9 md:w-10 md:h-10 rounded-full flex items-center justify-center mb-1.5 shadow-sm border-2 transition-all transform duration-500",
+                                            isCurrent ? 'border-green-500 shadow-green-100 scale-110 ring-4 ring-green-50 animate-pulse-subtle' : 'border-white',
                                             isPast && 'bg-white border-green-500',
                                             isFuture && !item.color && 'bg-white border-gray-100'
                                         )}
                                         style={
-                                            (isFuture && item.color) ? { backgroundColor: item.color + '15', color: item.color, borderColor: 'white' } : {}
+                                            (isFuture && item.color) ? { backgroundColor: item.color + '10', color: item.color, borderColor: 'white' } : {}
                                         }
                                     >
                                         {getIcon(item.type)}

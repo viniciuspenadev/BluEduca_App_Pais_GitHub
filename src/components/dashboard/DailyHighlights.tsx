@@ -34,7 +34,7 @@ export const DailyHighlights = ({ highlights, locked }: DailyHighlightsProps) =>
                 ].map((item, idx) => (
                     <div key={idx} className={`${item.bg} p-3 rounded-xl flex flex-col items-center justify-center gap-1`}>
                         <item.icon className={`w-5 h-5 ${item.text}`} />
-                        <span className="text-xs font-medium text-gray-600 leading-tight line-clamp-2 md:line-clamp-none">{item.label}</span>
+                        <span className="text-xs font-semibold text-gray-700 leading-tight line-clamp-2 md:line-clamp-none">{item.label}</span>
                     </div>
                 ))}
             </div>

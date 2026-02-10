@@ -3,7 +3,6 @@
 import { useState } from 'react';
 import { User, QrCode, ShieldCheck, GraduationCap, RotateCw } from 'lucide-react';
 import Image from 'next/image';
-import { motion } from 'framer-motion';
 
 interface DigitalStudentIdProps {
     student: {
@@ -42,23 +41,22 @@ export const DigitalStudentId = ({ student, schoolYear, schoolName = "Escola Par
 
     return (
         <div
-            className="w-full max-w-sm mx-auto h-56 cursor-pointer group select-none perspective-1000"
+            className="w-full max-w-sm mx-auto h-56 cursor-pointer group select-none"
             onClick={() => setIsFlipped(!isFlipped)}
-            style={{ perspective: 1000 }}
+            style={{ perspective: '1000px' }}
         >
-            <motion.div
-                className="relative w-full h-full"
-                animate={{ rotateY: isFlipped ? 180 : 0 }}
-                transition={{ duration: 0.6, ease: "easeInOut" }}
-                style={{ transformStyle: 'preserve-3d' }}
+            <div
+                className={`relative w-full h-full transition-all duration-700 transform ${isFlipped ? 'rotate-y-180' : ''}`}
+                style={{ transformStyle: 'preserve-3d', willChange: 'transform' }}
             >
+
                 {/* FRONT */}
                 <div
                     className="absolute inset-0 w-full h-full rounded-2xl overflow-hidden shadow-xl border border-white/20"
                     style={{
                         backfaceVisibility: 'hidden',
                         WebkitBackfaceVisibility: 'hidden',
-                        position: 'absolute'
+                        transform: 'rotateX(0deg) translateZ(1px)' // Force layer promotion
                     }}
                 >
                     {/* Background Art */}
@@ -131,12 +129,11 @@ export const DigitalStudentId = ({ student, schoolYear, schoolName = "Escola Par
 
                 {/* BACK */}
                 <div
-                    className="absolute inset-0 w-full h-full rounded-2xl overflow-hidden shadow-xl bg-slate-900 border border-slate-700 text-white p-4 flex flex-col items-center justify-center text-center"
+                    className="absolute inset-0 w-full h-full rotate-y-180 rounded-2xl overflow-hidden shadow-xl bg-slate-900 border border-slate-700 text-white p-4 flex flex-col items-center justify-center text-center"
                     style={{
                         backfaceVisibility: 'hidden',
                         WebkitBackfaceVisibility: 'hidden',
-                        transform: 'rotateY(180deg)',
-                        position: 'absolute'
+                        transform: 'rotateY(180deg) translateZ(1px)' // Keep rotation AND add Z push
                     }}
                 >
                     {/* Subtle Background Pattern */}
@@ -168,7 +165,7 @@ export const DigitalStudentId = ({ student, schoolYear, schoolName = "Escola Par
                         <GraduationCap className="w-5 h-5" />
                     </div>
                 </div>
-            </motion.div>
+            </div>
         </div>
     );
 };

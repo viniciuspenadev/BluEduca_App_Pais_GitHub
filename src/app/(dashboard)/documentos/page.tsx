@@ -6,10 +6,12 @@ import { createClient } from '@/utils/supabase/client';
 import { useStudent } from '@/contexts/StudentContext';
 import {
     FileText, CheckCircle, AlertCircle, Clock, Upload,
-    ArrowLeft
+    ArrowLeft, Download, User
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import clsx from 'clsx';
+import { Modal } from '@/components/ui/Modal';
+import { Eye } from 'lucide-react';
 
 // Types
 interface DocTemplate {
@@ -59,6 +61,8 @@ export default function DocumentsPage() {
     const queryClient = useQueryClient();
 
     const [uploadingDoc, setUploadingDoc] = useState<string | null>(null);
+    const [viewingDoc, setViewingDoc] = useState<{ url: string; title: string } | null>(null);
+    const [activeTab, setActiveTab] = useState<'contracts' | 'personal'>('contracts');
 
     // Fetch Enrollment
     const { data: enrollment, isLoading: enrollmentLoading } = useQuery({
@@ -174,10 +178,31 @@ export default function DocumentsPage() {
 
     // Derived State
     const uploadedDocs = enrollment?.details?.documents || {};
-    const allDocKeys = new Set([...templates.map(t => t.id), ...Object.keys(uploadedDocs)]);
 
-    // Sort logic from Legacy: Rejected first, then Missing, then others. Score-based.
-    const docList = Array.from(allDocKeys).map((key) => {
+    // Check if contract documents should be visible to parent
+    const hasContractDraft = !!uploadedDocs['contract_draft'];
+
+    // Explicitly add contract_signed to list if school provided a draft
+    const allDocKeys = new Set([...templates.map(t => t.id), ...Object.keys(uploadedDocs)]);
+    if (hasContractDraft) {
+        allDocKeys.add('contract_signed');
+    }
+
+    // Derived State
+    // 1. Separate documents into General and Contract-related
+    // General Documents: Templates + Ad-hoc (except contracts)
+    const generalDocKeys = Array.from(allDocKeys).filter(key => key !== 'contract_draft' && key !== 'contract_signed');
+
+    // Helper to get public URL if only file_path exists
+    const getDocUrl = (doc: any) => {
+        if (doc?.url) return doc.url;
+        if (doc?.file_path) {
+            return supabase.storage.from('documents').getPublicUrl(doc.file_path).data.publicUrl;
+        }
+        return null;
+    };
+
+    const generalDocs = generalDocKeys.map((key) => {
         const template = templates.find(t => t.id === key);
         const uploaded = uploadedDocs[key];
 
@@ -186,12 +211,18 @@ export default function DocumentsPage() {
             title: template?.label || uploaded?.label || key.replace(/_/g, ' '),
             status: (uploaded?.status || 'missing') as DocStatus['status'],
             reason: uploaded?.rejection_reason,
-            required: template?.required || false
+            required: template?.required || false,
+            url: getDocUrl(uploaded)
         };
     }).sort((a, b) => {
         const score = (s: string) => s === 'rejected' ? 0 : s === 'missing' ? 1 : 2;
         return score(a.status) - score(b.status);
     });
+
+    // Contract Documents: Specific objects for UI
+    const contractDraft = uploadedDocs['contract_draft'];
+    const contractDraftUrl = getDocUrl(contractDraft);
+    const contractSigned = uploadedDocs['contract_signed'];
 
     if (studentLoading) return <div className="p-12 flex justify-center"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-brand-500"></div></div>;
 
@@ -216,14 +247,44 @@ export default function DocumentsPage() {
                     <div className="flex justify-between items-center bg-gray-50 px-4 py-2 rounded-xl border border-gray-100">
                         <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Validados</span>
                         <span className="text-xs font-bold text-brand-600">
-                            {docList.filter(d => d.status === 'approved').length}/{docList.length}
+                            {[...generalDocs, contractSigned].filter(d => d?.status === 'approved').length} / {generalDocs.length + (hasContractDraft ? 1 : 0)}
                         </span>
                     </div>
                 )}
             </div>
 
-            {/* List */}
-            <div className="px-1 max-w-2xl mx-auto space-y-6">
+            {/* Tabs Selector */}
+            <div className="px-4 max-w-2xl mx-auto">
+                <div className="flex bg-white p-1.5 rounded-2xl gap-1 shadow-sm border border-gray-100">
+                    <button
+                        onClick={() => setActiveTab('contracts')}
+                        className={clsx(
+                            "flex-1 flex items-center justify-center gap-2 py-3 rounded-xl text-xs font-black transition-all uppercase tracking-widest",
+                            activeTab === 'contracts'
+                                ? "bg-brand-600 text-white shadow-lg shadow-brand-100"
+                                : "text-gray-400 hover:bg-gray-50"
+                        )}
+                    >
+                        <FileText className="w-4 h-4" />
+                        Contrato
+                    </button>
+                    <button
+                        onClick={() => setActiveTab('personal')}
+                        className={clsx(
+                            "flex-1 flex items-center justify-center gap-2 py-3 rounded-xl text-xs font-black transition-all uppercase tracking-widest",
+                            activeTab === 'personal'
+                                ? "bg-brand-600 text-white shadow-lg shadow-brand-100"
+                                : "text-gray-400 hover:bg-gray-50"
+                        )}
+                    >
+                        <User className="w-4 h-4" />
+                        Documentos
+                    </button>
+                </div>
+            </div>
+
+            {/* Main Content Area */}
+            <div className="px-1 max-w-2xl mx-auto pb-10">
                 {enrollmentLoading ? (
                     <div className="flex flex-col items-center justify-center py-20">
                         <div className="animate-spin w-8 h-8 border-4 border-brand-600 border-t-transparent rounded-full mb-4"></div>
@@ -235,94 +296,273 @@ export default function DocumentsPage() {
                         <h2 className="text-lg font-bold text-gray-900 mb-2">Nenhuma Matrícula</h2>
                         <p className="text-gray-500 text-sm">Não encontramos pendências documentais.</p>
                     </div>
-                ) : (
+                ) : activeTab === 'contracts' ? (
+                    /* TAB 1: CONTRACTS */
                     <div className="space-y-4">
-                        {docList.map((doc) => {
-                            const isRejected = doc.status === 'rejected';
-                            const isMissing = doc.status === 'missing';
-                            const isActionable = isRejected || isMissing;
+                        <section className="space-y-4">
+                            <div className="bg-white rounded-3xl p-6 shadow-sm border border-brand-100 bg-brand-50/5 overflow-hidden relative">
+                                <div className="absolute top-0 right-0 w-32 h-32 bg-brand-500/5 rounded-full -mr-16 -mt-16 blur-3xl" />
 
-                            return (
-                                <div
-                                    key={doc.id}
-                                    className={clsx(
-                                        "bg-white rounded-2xl p-5 shadow-sm border transition-all",
-                                        isRejected ? 'border-red-200 bg-red-50/10' : 'border-gray-100'
-                                    )}
-                                >
-                                    <div className="flex items-start gap-4">
-                                        <DocStatusIcon status={doc.status} />
-
-                                        <div className="flex-1 min-w-0">
-                                            <div className="flex items-center gap-2 mb-1.5">
-                                                <h3 className="font-bold text-gray-900 text-base leading-snug break-words">
-                                                    {doc.title}
-                                                </h3>
-                                                {doc.required && (
-                                                    <span className="shrink-0 text-[10px] font-bold text-red-500 bg-red-50 px-2 py-0.5 rounded-full uppercase tracking-tighter">
-                                                        Obrigatório
-                                                    </span>
-                                                )}
+                                <div className="space-y-6 relative">
+                                    {/* Item: Draft */}
+                                    <div className="flex flex-col gap-4">
+                                        <div className="flex items-start gap-4">
+                                            <div className="p-3 bg-brand-100 rounded-2xl text-brand-600">
+                                                <FileText className="w-5 h-5" />
                                             </div>
+                                            <div className="flex-1">
+                                                <h4 className="font-bold text-gray-900">1. Minuta do Contrato</h4>
+                                                <p className="text-xs text-gray-500 mt-0.5">Leia atentamente as condições antes de assinar.</p>
 
-                                            <div className="text-xs">
-                                                {isRejected ? (
-                                                    <span className="text-red-500 font-bold uppercase tracking-wider">Recusado</span>
-                                                ) : isMissing ? (
-                                                    <span className="text-gray-400 font-bold uppercase tracking-wider">Pendente</span>
-                                                ) : doc.status === 'approved' ? (
-                                                    <span className="text-emerald-600 font-bold uppercase tracking-wider">Validado</span>
+                                                {contractDraftUrl ? (
+                                                    <div className="mt-4 flex flex-col gap-2">
+                                                        <button
+                                                            onClick={() => setViewingDoc({ url: contractDraftUrl, title: 'Minuta do Contrato' })}
+                                                            className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-2xl bg-brand-600 text-white hover:bg-brand-700 transition-all text-sm font-black uppercase tracking-widest shadow-lg shadow-brand-100 active:scale-[0.98]"
+                                                        >
+                                                            <Eye className="w-4 h-4" />
+                                                            Visualizar Minuta
+                                                        </button>
+                                                        <p className="text-[10px] text-center text-brand-600 font-bold mt-1">✓ Disponível para leitura</p>
+                                                    </div>
                                                 ) : (
-                                                    <span className="text-amber-600 font-bold uppercase tracking-wider">Em análise</span>
+                                                    <div className="mt-3 p-3 bg-gray-100 rounded-xl text-[11px] text-gray-500 italic text-center border border-dashed border-gray-300">
+                                                        A escola ainda está preparando o seu contrato.
+                                                    </div>
                                                 )}
                                             </div>
+                                        </div>
+                                    </div>
 
-                                            {isRejected && doc.reason && (
-                                                <div className="mt-3 bg-red-50 p-3 rounded-xl text-xs text-red-700 border border-red-100">
-                                                    <p>{doc.reason}</p>
+                                    <div className="h-px bg-gray-100" />
+
+                                    {/* Item: Signed Upload */}
+                                    <div className="flex flex-col gap-4">
+                                        <div className="flex items-start gap-4">
+                                            <div className={clsx(
+                                                "p-3 rounded-2xl",
+                                                contractSigned?.status === 'approved' ? "bg-emerald-100 text-emerald-600" : "bg-brand-100 text-brand-600"
+                                            )}>
+                                                {contractSigned?.status === 'approved' ? <CheckCircle className="w-5 h-5" /> : <Upload className="w-5 h-5" />}
+                                            </div>
+                                            <div className="flex-1">
+                                                <h4 className="font-bold text-gray-900">2. Enviar Contrato Assinado</h4>
+                                                <div className="text-xs mt-0.5">
+                                                    {contractSigned?.status === 'approved' ? (
+                                                        <span className="text-emerald-600 font-black uppercase tracking-wider">Validado com Sucesso!</span>
+                                                    ) : contractSigned?.status === 'uploaded' ? (
+                                                        <span className="text-amber-600 font-bold uppercase tracking-wider">Em análise pela secretaria</span>
+                                                    ) : contractSigned?.status === 'rejected' ? (
+                                                        <span className="text-red-500 font-bold uppercase tracking-wider">Necessário re-enviar</span>
+                                                    ) : (
+                                                        <span className="text-gray-400">Envie o arquivo escaneado ou foto.</span>
+                                                    )}
                                                 </div>
-                                            )}
 
-                                            {isActionable && (
-                                                <div className="mt-4">
-                                                    <input
-                                                        type="file"
-                                                        id={`file-${doc.id}`}
-                                                        className="hidden"
-                                                        accept="image/jpeg,image/png,application/pdf"
-                                                        onChange={(e) => {
-                                                            if (e.target.files?.[0]) uploadMutation.mutate({ docId: doc.id, file: e.target.files[0] });
+                                                {contractSigned?.status === 'rejected' && contractSigned.rejection_reason && (
+                                                    <div className="mt-2 bg-red-50 p-2.5 rounded-xl text-[11px] text-red-700 border border-red-100 italic">
+                                                        " {contractSigned.rejection_reason} "
+                                                    </div>
+                                                )}
+
+                                                {/* ACTION: View signed contract */}
+                                                {(contractSigned?.status === 'uploaded' || contractSigned?.status === 'approved' || contractSigned?.status === 'rejected') && (
+                                                    <button
+                                                        onClick={() => {
+                                                            const url = getDocUrl(contractSigned);
+                                                            if (url) setViewingDoc({ url, title: 'Contrato Assinado Enviado' });
                                                         }}
-                                                        disabled={!!uploadingDoc}
-                                                    />
-                                                    <label
-                                                        htmlFor={`file-${doc.id}`}
-                                                        className={clsx(
-                                                            "w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl cursor-pointer transition-all text-sm font-bold uppercase tracking-widest",
-                                                            uploadingDoc === doc.id
-                                                                ? 'bg-gray-100 text-gray-400'
-                                                                : 'bg-brand-600 text-white hover:bg-brand-700 active:scale-95 shadow-lg shadow-brand-100'
-                                                        )}
+                                                        className="mt-3 text-[10px] font-black text-brand-600 uppercase tracking-widest flex items-center gap-1.5 bg-brand-50 px-3 py-2 rounded-lg border border-brand-100 hover:bg-brand-100 transition-colors"
                                                     >
-                                                        {uploadingDoc === doc.id ? (
-                                                            <span>Enviando...</span>
-                                                        ) : (
+                                                        <Eye className="w-3.5 h-3.5" />
+                                                        Ver arquivo enviado
+                                                    </button>
+                                                )}
+
+                                                {contractSigned?.status !== 'approved' && (
+                                                    <div className="mt-4">
+                                                        {contractDraftUrl ? (
                                                             <>
-                                                                <Upload className="w-4 h-4" />
-                                                                <span>{isRejected ? 'Reenviar' : 'Enviar'}</span>
+                                                                <input
+                                                                    type="file"
+                                                                    id="file-contract-signed"
+                                                                    className="hidden"
+                                                                    accept="image/jpeg,image/png,application/pdf"
+                                                                    onChange={(e) => {
+                                                                        if (e.target.files?.[0]) uploadMutation.mutate({ docId: 'contract_signed', file: e.target.files[0] });
+                                                                    }}
+                                                                    disabled={!!uploadingDoc}
+                                                                />
+                                                                <label
+                                                                    htmlFor="file-contract-signed"
+                                                                    className={clsx(
+                                                                        "w-full flex items-center justify-center gap-2 px-4 py-3 rounded-2xl cursor-pointer transition-all text-sm font-black uppercase tracking-widest",
+                                                                        uploadingDoc === 'contract_signed'
+                                                                            ? 'bg-gray-100 text-gray-400'
+                                                                            : 'bg-brand-600 text-white hover:bg-brand-700 active:scale-[0.98] shadow-lg shadow-brand-100'
+                                                                    )}
+                                                                >
+                                                                    {uploadingDoc === 'contract_signed' ? (
+                                                                        <span>Enviando...</span>
+                                                                    ) : (
+                                                                        <>
+                                                                            <Upload className="w-4 h-4" />
+                                                                            <span>{contractSigned?.status === 'rejected' ? 'Reenviar Contrato' : 'Enviar Contrato'}</span>
+                                                                        </>
+                                                                    )}
+                                                                </label>
                                                             </>
+                                                        ) : (
+                                                            <p className="text-[10px] text-gray-400 italic">Disponível após a emissão da minuta.</p>
                                                         )}
-                                                    </label>
-                                                </div>
-                                            )}
+                                                    </div>
+                                                )}
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
-                            );
-                        })}
+                            </div>
+                        </section>
+                    </div>
+                ) : (
+                    /* TAB 2: PERSONAL DOCUMENTS */
+                    <div className="space-y-4">
+                        <div className="space-y-3">
+                            {generalDocs.map((doc) => {
+                                const isRejected = doc.status === 'rejected';
+                                const isMissing = doc.status === 'missing';
+                                const isActionable = isRejected || isMissing;
+
+                                return (
+                                    <div
+                                        key={doc.id}
+                                        className={clsx(
+                                            "bg-white rounded-2xl p-4 shadow-sm border transition-all",
+                                            isRejected ? 'border-red-200 bg-red-50/10' : 'border-gray-100'
+                                        )}
+                                    >
+                                        <div className="flex items-start gap-3">
+                                            <DocStatusIcon status={doc.status} />
+
+                                            <div className="flex-1 min-w-0">
+                                                <div className="flex items-center justify-between mb-1">
+                                                    <div className="flex items-center gap-2">
+                                                        <h4 className="font-bold text-gray-900 text-sm leading-snug break-words">
+                                                            {doc.title}
+                                                        </h4>
+                                                        {doc.required && (
+                                                            <span className="shrink-0 text-[8px] font-black text-red-500 bg-red-50 px-1.5 py-0.5 rounded-full uppercase tracking-tighter">
+                                                                Obrigatório
+                                                            </span>
+                                                        )}
+                                                    </div>
+
+                                                    {/* ACTION: View what parent uploaded */}
+                                                    {doc.url && (
+                                                        <button
+                                                            onClick={() => setViewingDoc({ url: doc.url!, title: doc.title })}
+                                                            className="p-1.5 bg-brand-50 text-brand-600 hover:bg-brand-100 rounded-lg transition-colors border border-brand-100"
+                                                            title="Ver documento enviado"
+                                                        >
+                                                            <Eye className="w-3.5 h-3.5" />
+                                                        </button>
+                                                    )}
+                                                </div>
+
+                                                <div className="text-[10px]">
+                                                    {isRejected ? (
+                                                        <span className="text-red-500 font-bold uppercase tracking-wider">Recusado</span>
+                                                    ) : isMissing ? (
+                                                        <span className="text-gray-400 font-bold uppercase tracking-wider">Pendente</span>
+                                                    ) : doc.status === 'approved' ? (
+                                                        <span className="text-emerald-600 font-bold uppercase tracking-wider">Validado</span>
+                                                    ) : (
+                                                        <span className="text-amber-600 font-bold uppercase tracking-wider">Em análise</span>
+                                                    )}
+                                                </div>
+
+                                                {isRejected && doc.reason && (
+                                                    <div className="mt-2 bg-red-50 p-2 rounded-xl text-[10px] text-red-700 border border-red-50">
+                                                        <p>{doc.reason}</p>
+                                                    </div>
+                                                )}
+
+                                                {isActionable && (
+                                                    <div className="mt-3">
+                                                        <input
+                                                            type="file"
+                                                            id={`file-${doc.id}`}
+                                                            className="hidden"
+                                                            accept="image/jpeg,image/png,application/pdf"
+                                                            onChange={(e) => {
+                                                                if (e.target.files?.[0]) uploadMutation.mutate({ docId: doc.id, file: e.target.files[0] });
+                                                            }}
+                                                            disabled={!!uploadingDoc}
+                                                        />
+                                                        <label
+                                                            htmlFor={`file-${doc.id}`}
+                                                            className={clsx(
+                                                                "w-full flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl cursor-pointer transition-all text-[11px] font-black uppercase tracking-widest",
+                                                                uploadingDoc === doc.id
+                                                                    ? 'bg-gray-100 text-gray-400'
+                                                                    : 'bg-brand-600 text-white hover:bg-brand-700 active:scale-95 shadow-md shadow-brand-50'
+                                                            )}
+                                                        >
+                                                            {uploadingDoc === doc.id ? (
+                                                                <span>Enviando...</span>
+                                                            ) : (
+                                                                <>
+                                                                    <Upload className="w-3.5 h-3.5" />
+                                                                    <span>{isRejected ? 'Reenviar' : 'Enviar'}</span>
+                                                                </>
+                                                            )}
+                                                        </label>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                        </div>
                     </div>
                 )}
             </div>
+            {/* Document Viewer Modal */}
+            <Modal
+                isOpen={!!viewingDoc}
+                onClose={() => setViewingDoc(null)}
+                title={viewingDoc?.title || ''}
+                size="full"
+                footer={(
+                    <div className="flex justify-between items-center w-full">
+                        <p className="text-[10px] text-gray-500 italic max-w-xs">
+                            Você pode baixar este arquivo para assinar manualmente ou usar um app de assinatura.
+                        </p>
+                        <a
+                            href={viewingDoc?.url}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="flex items-center gap-2 px-4 py-2 bg-brand-600 text-white rounded-lg text-xs font-bold uppercase tracking-wider shadow-md hover:bg-brand-700"
+                        >
+                            <Download className="w-4 h-4" />
+                            Baixar / Abrir Original
+                        </a>
+                    </div>
+                )}
+            >
+                <div className="w-full h-[70vh] bg-gray-100 flex items-center justify-center overflow-hidden">
+                    {viewingDoc?.url ? (
+                        <iframe
+                            src={viewingDoc.url}
+                            className="w-full h-full border-none bg-white"
+                            title="Visualizador de Documento"
+                        />
+                    ) : (
+                        <div className="text-gray-400">Carregando visualização...</div>
+                    )}
+                </div>
+            </Modal>
         </div>
     );
 };
