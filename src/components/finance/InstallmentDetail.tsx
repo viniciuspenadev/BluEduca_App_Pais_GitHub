@@ -3,7 +3,7 @@
 import { BottomSheet } from '../ui/BottomSheet';
 import { Modal } from '../ui/Modal';
 import { Installment } from './InstallmentList';
-import { Copy, Share2, FileText, CheckCircle2, Barcode, ExternalLink, Handshake } from 'lucide-react';
+import { Copy, Share2, FileText, CheckCircle2, Barcode, ExternalLink, Handshake, Eye, QrCode } from 'lucide-react';
 import { useState } from 'react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -53,12 +53,14 @@ export const InstallmentDetail = ({ isOpen, onClose, installment }: InstallmentD
     };
 
     const handleShare = async () => {
-        if (!installment?.billing_url) return;
+        if (!installment) return;
+        const urlToShare = installment.billing_url || installment.metadata?.boleto_url;
+        if (!urlToShare) return;
 
         const shareData = {
             title: 'Fatura Escolar',
             text: 'Segue o link para pagamento da fatura escolar:',
-            url: installment.billing_url
+            url: urlToShare
         };
 
         try {
@@ -159,30 +161,56 @@ export const InstallmentDetail = ({ isOpen, onClose, installment }: InstallmentD
                     </div>
 
 
-                    {/* Actions (Only if not paid) */}
-                    {!isPaid && (
-                        <div className="flex gap-3 pt-2">
-                            {installment.billing_url && (
+                    {/* Actions (Only if not pending/overdue) */}
+                    {(installment.status === 'pending' || installment.status === 'overdue') && (
+                        <div className="flex flex-col gap-3 pt-2">
+                            {/* Priority: Asaas Link */}
+                            {installment.billing_url ? (
                                 <button
-                                    className="flex-1 h-14 bg-brand-600 text-white rounded-2xl text-base font-bold flex items-center justify-center gap-2 hover:bg-brand-700 active:scale-95 transition-all shadow-lg shadow-brand-200"
+                                    className="w-full h-14 bg-brand-600 text-white rounded-2xl text-base font-bold flex items-center justify-center gap-2 hover:bg-brand-700 active:scale-95 transition-all shadow-lg shadow-brand-200"
                                     onClick={() => setIsBoletoModalOpen(true)}
                                 >
                                     <Barcode className="w-5 h-5" />
-                                    Pagar
+                                    Pagar com Asaas
                                 </button>
-                            )}
+                            ) : (
+                                <div className="grid grid-cols-2 gap-3">
+                                    {/* Manual Pix */}
+                                    {installment.metadata?.pix_key && (
+                                        <button
+                                            onClick={() => handleCopy(installment.metadata!.pix_key!, 'pix')}
+                                            className={`
+                                                flex-1 h-14 border-2 rounded-2xl text-sm font-bold flex items-center justify-center gap-2 active:scale-95 transition-all
+                                                ${copied === 'pix' ? 'border-green-500 text-green-600 bg-green-50' : 'border-gray-200 text-gray-700 hover:border-gray-300'}
+                                            `}
+                                        >
+                                            {copied === 'pix' ? <CheckCircle2 className="w-4 h-4" /> : <QrCode className="w-5 h-5" />}
+                                            {copied === 'pix' ? 'Copiado!' : 'Copiar PIX'}
+                                        </button>
+                                    )}
 
-                            {installment.metadata?.pix_key && (
-                                <button
-                                    onClick={() => handleCopy(installment.metadata!.pix_key!, 'pix')}
-                                    className={`
-                                        flex-1 h-14 border-2 rounded-2xl text-base font-bold flex items-center justify-center gap-2 active:scale-95 transition-all
-                                        ${copied === 'pix' ? 'border-green-500 text-green-600 bg-green-50' : 'border-gray-200 text-gray-700 hover:border-gray-300'}
-                                    `}
-                                >
-                                    {copied === 'pix' ? <CheckCircle2 className="w-5 h-5" /> : <Copy className="w-5 h-5" />}
-                                    {copied === 'pix' ? 'Copiado!' : 'Copiar PIX'}
-                                </button>
+                                    {/* Manual Boleto (Code OR PDF) */}
+                                    {installment.metadata?.boleto_code ? (
+                                        <button
+                                            onClick={() => handleCopy(installment.metadata!.boleto_code!, 'barcode')}
+                                            className={`
+                                                flex-1 h-14 border-2 rounded-2xl text-sm font-bold flex items-center justify-center gap-2 active:scale-95 transition-all
+                                                ${copied === 'barcode' ? 'border-green-500 text-green-600 bg-green-50' : 'border-gray-200 text-gray-700 hover:border-gray-300'}
+                                            `}
+                                        >
+                                            {copied === 'barcode' ? <CheckCircle2 className="w-4 h-4" /> : <Barcode className="w-5 h-5" />}
+                                            {copied === 'barcode' ? 'Copiado!' : 'Copiar Boleto'}
+                                        </button>
+                                    ) : installment.metadata?.boleto_url ? (
+                                        <button
+                                            onClick={() => setIsBoletoModalOpen(true)}
+                                            className="flex-1 h-14 border-2 border-gray-200 text-gray-700 rounded-2xl text-sm font-bold flex items-center justify-center gap-2 hover:border-gray-300 active:scale-95 transition-all"
+                                        >
+                                            <Eye className="w-5 h-5" />
+                                            Ver Boleto
+                                        </button>
+                                    ) : null}
+                                </div>
                             )}
                         </div>
                     )}
@@ -207,7 +235,7 @@ export const InstallmentDetail = ({ isOpen, onClose, installment }: InstallmentD
                                 <Share2 className="w-4 h-4" /> Compartilhar
                             </button>
                             <button
-                                onClick={() => window.open(installment.billing_url || '', '_blank')}
+                                onClick={() => window.open(installment.billing_url || installment.metadata?.boleto_url || '', '_blank')}
                                 className="flex-1 sm:flex-none px-4 py-2 bg-brand-50 text-brand-700 rounded-lg text-sm font-bold hover:bg-brand-100 flex items-center justify-center gap-2"
                             >
                                 Abrir Externo <ExternalLink className="w-4 h-4" />
@@ -217,9 +245,9 @@ export const InstallmentDetail = ({ isOpen, onClose, installment }: InstallmentD
                 }
             >
                 <div className="w-full h-[65vh] bg-gray-100 relative">
-                    {installment.billing_url ? (
+                    {installment.billing_url || installment.metadata?.boleto_url ? (
                         <iframe
-                            src={installment.billing_url}
+                            src={installment.billing_url || installment.metadata?.boleto_url}
                             className="w-full h-full border-0"
                             title="Boleto Invoice"
                         />

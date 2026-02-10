@@ -27,6 +27,8 @@ export interface Installment {
         description?: string;
         category?: string;
         pix_key?: string;
+        boleto_code?: string;
+        boleto_url?: string;
     };
 }
 
