@@ -44,6 +44,7 @@ export const useAlerts = () => {
                     console.log('⚡ [Realtime] Nova mensagem detectada:', payload);
                     queryClient.invalidateQueries({ queryKey: ['alerts', selectedStudent.id] });
                     queryClient.invalidateQueries({ queryKey: ['communications', selectedStudent.id] });
+                    queryClient.invalidateQueries({ queryKey: ['dashboard', selectedStudent.id] });
                 }
             )
             .subscribe();
@@ -62,6 +63,7 @@ export const useAlerts = () => {
                 (payload) => {
                     console.log('⚡ [Realtime] Atualização de matrícula (documentos):', payload);
                     queryClient.invalidateQueries({ queryKey: ['alerts', selectedStudent.id] });
+                    queryClient.invalidateQueries({ queryKey: ['dashboard', selectedStudent.id] });
                 }
             )
             .subscribe();
@@ -86,6 +88,7 @@ export const useAlerts = () => {
                     console.log('⚡ [Realtime] Atualização financeira:', payload);
                     queryClient.invalidateQueries({ queryKey: ['alerts', selectedStudent.id] });
                     queryClient.invalidateQueries({ queryKey: ['financials'] }); // Also refresh financial list
+                    queryClient.invalidateQueries({ queryKey: ['dashboard', selectedStudent.id] });
                 }
             )
             .subscribe();

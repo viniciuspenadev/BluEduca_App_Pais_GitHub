@@ -182,6 +182,14 @@ body {
   padding-bottom: calc(env(safe-area-inset-bottom) + 16px);
 }
 
+.pt-safe {
+  padding-top: env(safe-area-inset-top);
+}
+
+.pt-safe-area {
+  padding-top: calc(env(safe-area-inset-top) + 16px);
+}
+
 .mb-safe {
   margin-bottom: env(safe-area-inset-bottom);
 }

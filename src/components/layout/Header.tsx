@@ -15,12 +15,6 @@ export const Header = () => {
     const pathname = usePathname();
     const isHome = pathname === '/home' || pathname === '/';
 
-    const handleSignOut = async () => {
-        await supabase.auth.signOut();
-        router.refresh();
-        router.push('/login');
-    };
-
     useEffect(() => {
         const handleClickOutside = (event: MouseEvent) => {
             if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
@@ -31,6 +25,14 @@ export const Header = () => {
         document.addEventListener('mousedown', handleClickOutside);
         return () => document.removeEventListener('mousedown', handleClickOutside);
     }, []);
+
+    const handleSignOut = async () => {
+        await supabase.auth.signOut();
+        router.refresh();
+        router.push('/login');
+    };
+
+    if (isHome) return null;
 
     return (
         <header className="bg-brand-600 md:bg-white md:border-b md:border-gray-200 text-white md:text-gray-900 px-5 pt-safe-area pb-2 flex justify-between items-center fixed top-0 left-0 right-0 md:left-64 z-50 shadow-md md:shadow-sm h-16 md:h-[72px]">
@@ -137,7 +139,7 @@ export const Header = () => {
             <div className="flex items-center gap-2 shrink-0">
                 {/* Notification Center will go here */}
                 {/* Logout Button (Mobile Only) */}
-                <button onClick={handleSignOut} className="md:hidden p-2 hover:bg-white/10 rounded-full text-white">
+                <button onClick={handleSignOut} className="md:hidden p-2 rounded-full transition-colors text-white hover:bg-white/10">
                     <LogOut className="w-5 h-5" />
                 </button>
             </div>

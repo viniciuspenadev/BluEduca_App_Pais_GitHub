@@ -18,6 +18,8 @@ export const viewport = {
   initialScale: 1,
   maximumScale: 1,
   userScalable: false,
+  themeColor: '#0284c7', // brand-600
+  viewportFit: 'cover',
 };
 
 import QueryProvider from '@/providers/QueryProvider';

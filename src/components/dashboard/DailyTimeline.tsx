@@ -130,7 +130,7 @@ export const DailyTimeline: FC<DailyTimelineProps> = ({ classId, enrollmentId, e
                                     key={item.id}
                                     onClick={() => isClickable && setSelectedItem(item)}
                                     className={clsx(
-                                        "relative flex-none md:flex-1 w-[52px] md:w-auto md:min-w-[52px] flex flex-col items-center group snap-start transition-opacity duration-300",
+                                        "relative flex-none md:flex-1 w-[52px] md:w-auto md:min-w-[52px] flex flex-col items-center group snap-start",
                                         isFuture ? 'opacity-50 grayscale' : 'opacity-100',
                                         isClickable ? 'cursor-pointer' : 'cursor-default'
                                     )}
@@ -138,15 +138,15 @@ export const DailyTimeline: FC<DailyTimelineProps> = ({ classId, enrollmentId, e
                                     {/* Connector Line */}
                                     {!isLast && (
                                         <div className={clsx(
-                                            "absolute top-[1.6rem] left-[50%] w-full h-[2px] -z-10 transition-colors duration-500",
+                                            "absolute top-[1.6rem] left-[50%] w-full h-[2px] -z-10",
                                             (isPast || isCurrent) ? 'bg-green-500' : 'bg-gray-100'
                                         )} />
                                     )}
 
                                     {/* Time Pill */}
                                     <span className={clsx(
-                                        "text-[9px] font-bold mb-1 px-1 py-0.5 rounded-md transition-colors duration-300",
-                                        isCurrent && 'bg-green-100 text-green-700 animate-pulse',
+                                        "text-[9px] font-bold mb-1 px-1 py-0.5 rounded-md",
+                                        isCurrent && 'bg-green-100 text-green-700',
                                         isPast && 'bg-green-50 text-green-600',
                                         isFuture && 'bg-gray-100 text-gray-400',
                                         !hasTime && 'opacity-0'
@@ -157,8 +157,8 @@ export const DailyTimeline: FC<DailyTimelineProps> = ({ classId, enrollmentId, e
                                     {/* Icon Circle */}
                                     <div
                                         className={clsx(
-                                            "w-9 h-9 md:w-10 md:h-10 rounded-full flex items-center justify-center mb-1.5 shadow-sm border-2 transition-all transform duration-500",
-                                            isCurrent ? 'border-green-500 shadow-green-100 scale-110 ring-4 ring-green-50 animate-pulse-subtle' : 'border-white',
+                                            "w-9 h-9 md:w-10 md:h-10 rounded-full flex items-center justify-center mb-1.5 shadow-sm border-2",
+                                            isCurrent ? 'border-green-500 shadow-green-100 scale-110 ring-4 ring-green-50' : 'border-white',
                                             isPast && 'bg-white border-green-500',
                                             isFuture && !item.color && 'bg-white border-gray-100'
                                         )}
@@ -171,7 +171,7 @@ export const DailyTimeline: FC<DailyTimelineProps> = ({ classId, enrollmentId, e
 
                                     {/* Title */}
                                     <span className={clsx(
-                                        "text-[9px] font-bold text-center leading-tight line-clamp-2 w-full px-0.5 transition-colors",
+                                        "text-[9px] font-bold text-center leading-tight line-clamp-2 w-full px-0.5",
                                         isCurrent ? 'text-green-700' : 'text-gray-700',
                                         isFuture && 'text-gray-400'
                                     )}>

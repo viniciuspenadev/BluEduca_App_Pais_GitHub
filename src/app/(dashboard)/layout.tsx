@@ -5,6 +5,7 @@ import { Sidebar } from '@/components/layout/Sidebar';
 import { Header } from '@/components/layout/Header';
 import { BottomNav } from '@/components/layout/BottomNav';
 import { PushNotificationManager } from '@/components/layout/PushNotificationManager';
+import { DashboardMain } from '@/components/layout/DashboardMain';
 
 export default async function DashboardLayout({
     children,
@@ -35,16 +36,12 @@ export default async function DashboardLayout({
                 <Sidebar />
 
                 {/* Main Content Wrapper */}
-                <div className="flex-1 flex flex-col md:pl-64 min-w-0 transition-all duration-300">
+                <div className="flex-1 flex flex-col md:pl-64 min-w-0">
                     <Header />
 
-                    {/* Header Spacer */}
-                    <div className="h-16 md:h-[72px] shrink-0" />
-
-                    {/* Main Content Area */}
-                    <main className="flex-1 overflow-y-auto pb-24 md:pb-8 scrollbar-hide w-full max-w-[1920px] mx-auto px-4 py-6 md:p-8">
+                    <DashboardMain>
                         {children}
-                    </main>
+                    </DashboardMain>
                 </div>
 
                 {/* Mobile Bottom Nav */}

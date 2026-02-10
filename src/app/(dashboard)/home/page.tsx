@@ -7,9 +7,11 @@ import { DailyHighlights } from '@/components/dashboard/DailyHighlights';
 import { DailyTimeline } from '@/components/dashboard/DailyTimeline';
 import { DashboardFeed, type FeedItemData } from '@/components/dashboard/Feed';
 import { QuickActions } from '@/components/dashboard/QuickActions';
+import { HomeSkeleton } from '@/components/dashboard/HomeSkeleton';
 import { createClient } from '@/utils/supabase/client';
 
-import { User, LogOut } from 'lucide-react';
+import { User, LogOut, ChevronDown, Check, GraduationCap } from 'lucide-react';
+import { useState, useRef, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
@@ -51,26 +53,35 @@ const fetchDashboardData = async (studentId: string | undefined, enrollmentId: s
     }
 
     // 2. Process Events Today
+    const todayIds = new Set();
     if (result.events_today && result.events_today.length > 0) {
-        banners.push({
-            type: 'event-today',
-            title: result.events_today[0].title,
-            message: result.events_today[0].location ? `Local: ${result.events_today[0].location}` : 'Confira os detalhes na agenda.',
-            actionLabel: 'Ver Agenda',
-            actionLink: '/cronograma'
+        result.events_today.forEach((event: any) => {
+            todayIds.add(event.id);
+            banners.push({
+                type: 'event-today',
+                title: event.title,
+                message: event.location ? `Local: ${event.location}` : 'Confira os detalhes na agenda.',
+                imageUrl: event.image_url,
+                actionLabel: 'Ver Agenda',
+                actionLink: '/cronograma',
+                data: { id: event.id }
+            });
         });
     }
 
-    // 3. Process Mural Highlights
+    // 3. Process Mural Highlights (Filter out duplicates from today)
     if (result.mural_highlights && result.mural_highlights.length > 0) {
         result.mural_highlights.forEach((h: any) => {
+            if (todayIds.has(h.id)) return; // Skip if already added as today event
+
             banners.push({
                 type: 'mural-highlight',
                 title: h.title,
                 message: h.description || '',
                 imageUrl: h.image_url,
                 actionLabel: 'Ver Detalhes',
-                actionLink: `/mural/${h.id}`
+                actionLink: `/mural/${h.id}`,
+                data: { id: h.id }
             });
         });
     }
@@ -130,10 +141,23 @@ const fetchDashboardData = async (studentId: string | undefined, enrollmentId: s
 };
 
 export default function HomePage() {
-    const { selectedStudent, loading: studentLoading } = useStudent();
+    const { students, selectedStudent, setSelectedStudent, loading: studentLoading } = useStudent();
+    const [isSwitcherOpen, setIsSwitcherOpen] = useState(false);
+    const switcherRef = useRef<HTMLDivElement>(null);
     const supabase = createClient();
     const router = useRouter();
     const { value: releaseTime } = useAppSettings('diary_release_time', '17:00');
+
+    // Handle clicking outside the switcher
+    useEffect(() => {
+        const handleClickOutside = (event: MouseEvent) => {
+            if (switcherRef.current && !switcherRef.current.contains(event.target as Node)) {
+                setIsSwitcherOpen(false);
+            }
+        };
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, []);
 
     // Calculate Lock State
     const now = new Date();
@@ -151,7 +175,7 @@ export default function HomePage() {
 
     if (!selectedStudent || studentLoading || (dashboardLoading && !data)) {
         if (studentLoading || dashboardLoading) {
-            return <div className="h-screen flex items-center justify-center"><div className="animate-spin rounded-full h-12 w-12 border-b-2 border-brand-600"></div></div>;
+            return <HomeSkeleton />;
         }
         return <div className="p-8 text-center text-gray-500 uppercase text-xs font-bold tracking-widest">Selecione um aluno para continuar.</div>;
     }
@@ -166,23 +190,156 @@ export default function HomePage() {
     return (
         <div className="md:grid md:grid-cols-12 md:gap-6 items-start">
             {/* LEFT COLUMN - Dashboard Content */}
-            <div className="md:col-span-8 space-y-6">
-                <SmartBanners banners={safeData.smartBanners} />
-
-                {/* Daily Timeline (Rotina do Dia) */}
-                <DailyTimeline
-                    classId={selectedStudent.class_id}
-                    enrollmentId={selectedStudent.enrollment_id}
-                    externalItems={safeData.todaysClasses}
+            {/* LEFT COLUMN - Dashboard Content */}
+            <div className="md:col-span-8 relative flex flex-col min-h-[500px]">
+                <div
+                    className="absolute top-0 left-0 right-0 bg-brand-600 pointer-events-none"
+                    style={{
+                        height: '380px',
+                        borderBottomLeftRadius: '50% 100px',
+                        borderBottomRightRadius: '50% 100px',
+                        zIndex: 0
+                    }}
                 />
 
-                <div className="py-2">
-                    <QuickActions />
+                {/* 2. CAMADA DE INFO: Avatar e Dados (Sobre o Azul) */}
+                <div className="relative z-10 px-6 pt-safe-area pt-8" ref={switcherRef}>
+                    <div className="flex justify-between items-center mb-10">
+                        <div className="flex items-center gap-4">
+                            {/* Avatar & Selector Button */}
+                            <button
+                                onClick={() => students.length > 1 && setIsSwitcherOpen(!isSwitcherOpen)}
+                                disabled={students.length <= 1}
+                                className={`flex items-center gap-4 text-left transition-all ${students.length > 1 ? 'hover:opacity-80 active:scale-95' : 'cursor-default'}`}
+                            >
+                                <div className="w-14 h-14 rounded-full border-2 border-white/20 overflow-hidden bg-white/10 relative shadow-sm">
+                                    {selectedStudent.photo_url ? (
+                                        <Image
+                                            src={selectedStudent.photo_url}
+                                            alt={selectedStudent.name}
+                                            fill
+                                            className="object-cover"
+                                            sizes="64px"
+                                        />
+                                    ) : (
+                                        <div className="w-full h-full flex items-center justify-center">
+                                            <User className="w-8 h-8 text-white/40" />
+                                        </div>
+                                    )}
+                                </div>
+
+                                {/* Info */}
+                                <div className="text-white min-w-0">
+                                    <div className="flex items-center gap-2">
+                                        <h1 className="text-lg font-bold leading-tight truncate tracking-tight">
+                                            {selectedStudent.name}
+                                        </h1>
+                                        {students.length > 1 && (
+                                            <ChevronDown className={`w-4 h-4 text-white/40 transition-transform ${isSwitcherOpen ? 'rotate-180' : ''}`} />
+                                        )}
+                                    </div>
+                                    <p className="text-[11px] font-medium text-white/50 uppercase tracking-widest mt-0.5">
+                                        {selectedStudent.class_name || 'Turma não informada'}
+                                    </p>
+                                </div>
+                            </button>
+                        </div>
+
+                        {/* Dropdown de Troca de Aluno */}
+                        {isSwitcherOpen && (
+                            <div className="absolute top-24 left-6 right-6 bg-white rounded-3xl shadow-2xl border border-gray-100 overflow-hidden z-[100] animate-in fade-in zoom-in duration-200 origin-top-left max-w-sm">
+                                <div className="p-3 max-h-[400px] overflow-y-auto custom-scrollbar">
+                                    <div className="px-4 py-3 border-b border-gray-50 mb-2">
+                                        <p className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em]">Seus Filhos</p>
+                                    </div>
+                                    <div className="space-y-1">
+                                        {students.map((student) => {
+                                            const isSelected = selectedStudent.id === student.id;
+                                            return (
+                                                <button
+                                                    key={student.id}
+                                                    onClick={() => {
+                                                        setSelectedStudent(student);
+                                                        setIsSwitcherOpen(false);
+                                                    }}
+                                                    className={`
+                                                        w-full flex items-center gap-4 p-3 rounded-2xl transition-all
+                                                        ${isSelected
+                                                            ? 'bg-brand-50 border-2 border-brand-200'
+                                                            : 'hover:bg-gray-50 border-2 border-transparent active:scale-[0.98]'
+                                                        }
+                                                    `}
+                                                >
+                                                    <div className={`
+                                                        w-12 h-12 rounded-full overflow-hidden border-2 shrink-0
+                                                        ${isSelected ? 'border-brand-500' : 'border-gray-100'}
+                                                    `}>
+                                                        {student.photo_url ? (
+                                                            <div className="relative w-full h-full">
+                                                                <Image src={student.photo_url} alt={student.name} fill className="object-cover" />
+                                                            </div>
+                                                        ) : (
+                                                            <div className="w-full h-full bg-gray-100 flex items-center justify-center">
+                                                                <User className="w-6 h-6 text-gray-400" />
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                    <div className="flex-1 min-w-0 text-left">
+                                                        <h4 className={`font-bold text-sm truncate ${isSelected ? 'text-brand-900' : 'text-gray-900'}`}>
+                                                            {student.name}
+                                                        </h4>
+                                                        <p className="text-xs text-gray-500 truncate">
+                                                            {student.class_name || 'Turma não informada'}
+                                                        </p>
+                                                    </div>
+                                                    {isSelected && (
+                                                        <div className="bg-brand-500 rounded-full p-1">
+                                                            <Check className="w-3 h-3 text-white" />
+                                                        </div>
+                                                    )}
+                                                </button>
+                                            );
+                                        })}
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Logout Button */}
+                        <button
+                            onClick={async () => {
+                                await supabase.auth.signOut();
+                                router.refresh();
+                                router.push('/login');
+                            }}
+                            className="p-2.5 bg-white/5 rounded-xl hover:bg-white/10 transition-all active:scale-95 border border-white/5 text-white/50 hover:text-white"
+                        >
+                            <LogOut className="w-5 h-5" />
+                        </button>
+                    </div>
                 </div>
 
-                <DailyHighlights highlights={safeData.dailyHighlights} locked={isDiaryLocked} />
+                {/* 3. CAMADA DE CONTEÚDO: Mural e Outros (Sobre o Azul, fundindo com o fundo) */}
+                <div className="relative z-20 px-4 space-y-6">
+                    <div className="px-1 -mt-2">
+                        <SmartBanners banners={safeData.smartBanners} />
+                    </div>
 
-                <DashboardFeed items={safeData.feed} />
+                    {/* Daily Timeline (Rotina do Dia) */}
+                    <DailyTimeline
+                        classId={selectedStudent.class_id}
+                        enrollmentId={selectedStudent.enrollment_id}
+                        externalItems={safeData.todaysClasses}
+                    />
+
+                    <div className="pt-6 pb-2">
+                        <QuickActions />
+                    </div>
+
+                    <DailyHighlights highlights={safeData.dailyHighlights} locked={isDiaryLocked} />
+
+                    <DashboardFeed items={safeData.feed} />
+                </div>
             </div>
 
             {/* RIGHT COLUMN - Widgets & Context */}

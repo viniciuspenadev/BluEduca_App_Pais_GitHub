@@ -28,10 +28,10 @@ export const DashboardFeed = ({ items }: DashboardFeedProps) => {
     return (
         <div className="pt-2">
             <div className="flex items-center justify-between mb-3 px-1">
-                <h3 className="text-lg font-bold text-gray-900">Mural & Atualizações</h3>
+                <h3 className="text-lg font-bold text-gray-900"></h3>
                 {items.length > 0 && (
                     <span className="text-xs font-medium text-brand-600 bg-brand-50 px-2 py-1 rounded-full">
-                        {items.length} novas
+                        {items.length} Eventos Próximos
                     </span>
                 )}
             </div>
@@ -41,7 +41,7 @@ export const DashboardFeed = ({ items }: DashboardFeedProps) => {
                     <div
                         key={item.id}
                         className={`
-                            relative bg-white p-4 md:p-5 rounded-xl border shadow-sm hover:shadow-md transition-shadow
+                            relative bg-white p-4 md:p-5 rounded-xl border shadow-sm
                             ${item.is_pinned ? 'bg-brand-50/30 border-brand-100' : 'border-gray-100'}
                         `}
                     >
