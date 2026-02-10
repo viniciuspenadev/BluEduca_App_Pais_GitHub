@@ -130,6 +130,14 @@ export const InstallmentDetail = ({ isOpen, onClose, installment }: InstallmentD
                                 <span className="font-bold text-gray-900">{installment.metadata.description}</span>
                             </div>
                         )}
+                        {(installment.metadata?.category || installment.negotiation_type) && (
+                            <div className="flex justify-between py-3 border-b border-gray-100">
+                                <span className="text-gray-500">Categoria</span>
+                                <span className="font-bold text-gray-900 capitalize">
+                                    {installment.metadata?.category || installment.negotiation_type || "Geral"}
+                                </span>
+                            </div>
+                        )}
                         <div className="flex justify-between py-3 border-b border-gray-100">
                             <span className="text-gray-500">Mês de Referência</span>
                             <span className="font-bold text-gray-900 capitalize">
@@ -158,60 +166,70 @@ export const InstallmentDetail = ({ isOpen, onClose, installment }: InstallmentD
                                 </span>
                             </div>
                         )}
+
+                        {isPaid && installment.metadata?.manual_obs && (
+                            <div className="mt-4 p-4 bg-green-50 rounded-2xl border border-green-100 italic text-[13px] text-green-900">
+                                <div className="flex items-center gap-2 mb-1 not-italic">
+                                    <FileText className="w-3.5 h-3.5 text-green-600" />
+                                    <span className="text-[10px] font-bold uppercase tracking-wider">Observação do Pagamento</span>
+                                </div>
+                                {installment.metadata.manual_obs}
+                            </div>
+                        )}
                     </div>
 
 
-                    {/* Actions (Only if not pending/overdue) */}
+                    {/* Actions */}
                     {(installment.status === 'pending' || installment.status === 'overdue') && (
                         <div className="flex flex-col gap-3 pt-2">
-                            {/* Priority: Asaas Link */}
-                            {installment.billing_url ? (
-                                <button
-                                    className="w-full h-14 bg-brand-600 text-white rounded-2xl text-base font-bold flex items-center justify-center gap-2 hover:bg-brand-700 active:scale-95 transition-all shadow-lg shadow-brand-200"
-                                    onClick={() => setIsBoletoModalOpen(true)}
-                                >
-                                    <Barcode className="w-5 h-5" />
-                                    Pagar com Asaas
-                                </button>
-                            ) : (
-                                <div className="grid grid-cols-2 gap-3">
-                                    {/* Manual Pix */}
-                                    {installment.metadata?.pix_key && (
-                                        <button
-                                            onClick={() => handleCopy(installment.metadata!.pix_key!, 'pix')}
-                                            className={`
-                                                flex-1 h-14 border-2 rounded-2xl text-sm font-bold flex items-center justify-center gap-2 active:scale-95 transition-all
-                                                ${copied === 'pix' ? 'border-green-500 text-green-600 bg-green-50' : 'border-gray-200 text-gray-700 hover:border-gray-300'}
-                                            `}
-                                        >
-                                            {copied === 'pix' ? <CheckCircle2 className="w-4 h-4" /> : <QrCode className="w-5 h-5" />}
-                                            {copied === 'pix' ? 'Copiado!' : 'Copiar PIX'}
-                                        </button>
-                                    )}
+                            <div className="grid grid-cols-2 gap-3">
+                                {/* Shortcut: Pix (Asaas or Manual) */}
+                                {(installment.pix_qr_code || installment.metadata?.pix_key) && (
+                                    <button
+                                        onClick={() => handleCopy(installment.pix_qr_code || installment.metadata!.pix_key!, 'pix')}
+                                        className={`
+                                            flex-1 h-14 border-2 rounded-2xl text-sm font-bold flex items-center justify-center gap-2 active:scale-95 transition-all
+                                            ${copied === 'pix' ? 'border-green-500 text-green-600 bg-green-50' : 'border-gray-200 text-gray-700 hover:border-gray-300'}
+                                        `}
+                                    >
+                                        {copied === 'pix' ? <CheckCircle2 className="w-4 h-4" /> : <QrCode className="w-5 h-5" />}
+                                        {copied === 'pix' ? 'Copiado!' : 'Copiar PIX'}
+                                    </button>
+                                )}
 
-                                    {/* Manual Boleto (Code OR PDF) */}
-                                    {installment.metadata?.boleto_code ? (
-                                        <button
-                                            onClick={() => handleCopy(installment.metadata!.boleto_code!, 'barcode')}
-                                            className={`
-                                                flex-1 h-14 border-2 rounded-2xl text-sm font-bold flex items-center justify-center gap-2 active:scale-95 transition-all
-                                                ${copied === 'barcode' ? 'border-green-500 text-green-600 bg-green-50' : 'border-gray-200 text-gray-700 hover:border-gray-300'}
-                                            `}
-                                        >
-                                            {copied === 'barcode' ? <CheckCircle2 className="w-4 h-4" /> : <Barcode className="w-5 h-5" />}
-                                            {copied === 'barcode' ? 'Copiado!' : 'Copiar Boleto'}
-                                        </button>
-                                    ) : installment.metadata?.boleto_url ? (
-                                        <button
-                                            onClick={() => setIsBoletoModalOpen(true)}
-                                            className="flex-1 h-14 border-2 border-gray-200 text-gray-700 rounded-2xl text-sm font-bold flex items-center justify-center gap-2 hover:border-gray-300 active:scale-95 transition-all"
-                                        >
-                                            <Eye className="w-5 h-5" />
-                                            Ver Boleto
-                                        </button>
-                                    ) : null}
-                                </div>
-                            )}
+                                {/* Shortcut: Boleto (Code or PDF) */}
+                                {installment.metadata?.boleto_code ? (
+                                    <button
+                                        onClick={() => handleCopy(installment.metadata!.boleto_code!, 'barcode')}
+                                        className={`
+                                            flex-1 h-14 border-2 rounded-2xl text-sm font-bold flex items-center justify-center gap-2 active:scale-95 transition-all
+                                            ${copied === 'barcode' ? 'border-green-500 text-green-600 bg-green-50' : 'border-gray-200 text-gray-700 hover:border-gray-300'}
+                                        `}
+                                    >
+                                        {copied === 'barcode' ? <CheckCircle2 className="w-4 h-4" /> : <Barcode className="w-5 h-5" />}
+                                        {copied === 'barcode' ? 'Copiado!' : 'Copiar Boleto'}
+                                    </button>
+                                ) : (installment.billing_url || installment.metadata?.boleto_url) ? (
+                                    <button
+                                        onClick={() => setIsBoletoModalOpen(true)}
+                                        className="flex-1 h-14 border-2 border-gray-200 text-gray-700 rounded-2xl text-sm font-bold flex items-center justify-center gap-2 hover:border-gray-300 active:scale-95 transition-all"
+                                    >
+                                        <ExternalLink className="w-5 h-5" />
+                                        Ver Fatura
+                                    </button>
+                                ) : null}
+
+                                {/* Primary Action: Asaas Checkout if available */}
+                                {installment.billing_url && (
+                                    <button
+                                        className="col-span-2 h-14 bg-brand-600 text-white rounded-2xl text-base font-bold flex items-center justify-center gap-2 hover:bg-brand-700 active:scale-95 transition-all shadow-lg shadow-brand-200"
+                                        onClick={() => setIsBoletoModalOpen(true)}
+                                    >
+                                        <Barcode className="w-5 h-5" />
+                                        Pagar com Asaas
+                                    </button>
+                                )}
+                            </div>
                         </div>
                     )}
 
