@@ -22,6 +22,7 @@ export interface Installment {
     category?: string;
     discount_value?: number;
     negotiation_date?: string;
+    negotiation_type?: string;
     negotiation_notes?: string;
     metadata?: {
         description?: string;
@@ -29,6 +30,7 @@ export interface Installment {
         pix_key?: string;
         boleto_code?: string;
         boleto_url?: string;
+        manual_obs?: string;
     };
 }
 
