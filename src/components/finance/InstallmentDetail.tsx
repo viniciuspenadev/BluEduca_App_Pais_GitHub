@@ -183,51 +183,31 @@ export const InstallmentDetail = ({ isOpen, onClose, installment }: InstallmentD
                     {(installment.status === 'pending' || installment.status === 'overdue') && (
                         <div className="flex flex-col gap-3 pt-2">
                             <div className="grid grid-cols-2 gap-3">
-                                {/* Shortcut: Pix (Asaas or Manual) */}
-                                {(installment.pix_qr_code || installment.metadata?.pix_key) && (
+                                {/* Left Button: Boleto (Blue/Brand) - Opens the Invoice/Checkout */}
+                                <button
+                                    className="h-14 bg-brand-600 text-white rounded-2xl text-base font-bold flex items-center justify-center gap-2 hover:bg-brand-700 active:scale-95 transition-all shadow-lg shadow-brand-200"
+                                    onClick={() => setIsBoletoModalOpen(true)}
+                                >
+                                    <Barcode className="w-5 h-5" />
+                                    Boleto
+                                </button>
+
+                                {/* Right Button: Pix (Outline) - Copies the Pix Key */}
+                                {(installment.pix_qr_code || installment.metadata?.pix_key) ? (
                                     <button
                                         onClick={() => handleCopy(installment.pix_qr_code || installment.metadata!.pix_key!, 'pix')}
                                         className={`
-                                            flex-1 h-14 border-2 rounded-2xl text-sm font-bold flex items-center justify-center gap-2 active:scale-95 transition-all
+                                            h-14 border-2 rounded-2xl text-sm font-bold flex items-center justify-center gap-2 active:scale-95 transition-all
                                             ${copied === 'pix' ? 'border-green-500 text-green-600 bg-green-50' : 'border-gray-200 text-gray-700 hover:border-gray-300'}
                                         `}
                                     >
                                         {copied === 'pix' ? <CheckCircle2 className="w-4 h-4" /> : <QrCode className="w-5 h-5" />}
                                         {copied === 'pix' ? 'Copiado!' : 'Copiar PIX'}
                                     </button>
-                                )}
-
-                                {/* Shortcut: Boleto (Code or PDF) */}
-                                {installment.metadata?.boleto_code ? (
-                                    <button
-                                        onClick={() => handleCopy(installment.metadata!.boleto_code!, 'barcode')}
-                                        className={`
-                                            flex-1 h-14 border-2 rounded-2xl text-sm font-bold flex items-center justify-center gap-2 active:scale-95 transition-all
-                                            ${copied === 'barcode' ? 'border-green-500 text-green-600 bg-green-50' : 'border-gray-200 text-gray-700 hover:border-gray-300'}
-                                        `}
-                                    >
-                                        {copied === 'barcode' ? <CheckCircle2 className="w-4 h-4" /> : <Barcode className="w-5 h-5" />}
-                                        {copied === 'barcode' ? 'Copiado!' : 'Copiar Boleto'}
-                                    </button>
-                                ) : (installment.billing_url || installment.metadata?.boleto_url) ? (
-                                    <button
-                                        onClick={() => setIsBoletoModalOpen(true)}
-                                        className="flex-1 h-14 border-2 border-gray-200 text-gray-700 rounded-2xl text-sm font-bold flex items-center justify-center gap-2 hover:border-gray-300 active:scale-95 transition-all"
-                                    >
-                                        <ExternalLink className="w-5 h-5" />
-                                        Ver Fatura
-                                    </button>
-                                ) : null}
-
-                                {/* Primary Action: Asaas Checkout if available */}
-                                {installment.billing_url && (
-                                    <button
-                                        className="col-span-2 h-14 bg-brand-600 text-white rounded-2xl text-base font-bold flex items-center justify-center gap-2 hover:bg-brand-700 active:scale-95 transition-all shadow-lg shadow-brand-200"
-                                        onClick={() => setIsBoletoModalOpen(true)}
-                                    >
-                                        <Barcode className="w-5 h-5" />
-                                        Pagar com Asaas
-                                    </button>
+                                ) : (
+                                    <div className="h-14 bg-gray-50 border-2 border-dashed border-gray-200 rounded-2xl flex items-center justify-center text-[10px] font-bold text-gray-400 uppercase tracking-tighter text-center px-2">
+                                        Pix Indisponível
+                                    </div>
                                 )}
                             </div>
                         </div>
