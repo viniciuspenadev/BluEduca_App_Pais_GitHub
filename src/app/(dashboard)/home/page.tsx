@@ -159,6 +159,56 @@ export default function HomePage() {
         return () => document.removeEventListener('mousedown', handleClickOutside);
     }, []);
 
+    // --- ANALYTICS: Log App Access (Once per Day) ---
+    useEffect(() => {
+        const logAccess = async () => {
+            if (!selectedStudent?.school_id) return;
+
+            const today = new Date().toISOString().split('T')[0];
+            const storageKey = `app_access_log_${selectedStudent.school_id}_${today}`;
+
+            // 1. Check LocalStorage (Client-side throttle)
+            if (localStorage.getItem(storageKey)) return;
+
+            try {
+                // 2. Gather Device Info
+                const ua = navigator.userAgent;
+                let deviceType = 'desktop';
+                if (/Mobi|Android/i.test(ua)) deviceType = 'mobile';
+                else if (/Tablet|iPad/i.test(ua)) deviceType = 'tablet';
+
+                let osName = 'Unknown';
+                if (ua.indexOf('Win') !== -1) osName = 'Windows';
+                else if (ua.indexOf('Mac') !== -1) osName = 'MacOS';
+                else if (ua.indexOf('Linux') !== -1) osName = 'Linux';
+                else if (ua.indexOf('Android') !== -1) osName = 'Android';
+                else if (ua.indexOf('like Mac') !== -1) osName = 'iOS';
+
+                // 3. Call RPC
+                await supabase.rpc('log_app_access', {
+                    p_school_id: selectedStudent.school_id,
+                    p_role: 'GUARDIAN', // Parent App is always Guardian
+                    p_user_agent: ua,
+                    p_device_type: deviceType,
+                    p_os_name: osName
+                    // IP is handled by RPC/Postgres headers usually, or we skip it here if not critical
+                });
+
+                // 4. Mark as logged
+                localStorage.setItem(storageKey, 'true');
+            } catch (err) {
+                console.error('Analytics Error:', err);
+            }
+        };
+
+        // Delay slightly to not block main thread on load
+        const timer = setTimeout(() => {
+            logAccess();
+        }, 2000);
+
+        return () => clearTimeout(timer);
+    }, [selectedStudent?.school_id]); // Run when school/student context is ready
+
     // Calculate Lock State
     const now = new Date();
     const currentTime = now.getHours().toString().padStart(2, '0') + ':' + now.getMinutes().toString().padStart(2, '0');

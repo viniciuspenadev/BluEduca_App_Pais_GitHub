@@ -27,8 +27,46 @@ export const PushNotificationManager = () => {
 
     const subscribeToPush = async () => {
         try {
-            const reg = await navigator.serviceWorker.ready;
+            // DETECT NATIVE ENVIRONMENT
+            const isNative = typeof window !== 'undefined' && (window as any).Capacitor?.isNative;
 
+            if (isNative) {
+                const { PushNotifications } = await import('@capacitor/push-notifications');
+
+                // Request Permission
+                let permStatus = await PushNotifications.checkPermissions();
+                if (permStatus.receive === 'prompt') {
+                    permStatus = await PushNotifications.requestPermissions();
+                }
+
+                if (permStatus.receive !== 'granted') return;
+
+                // Register with FCM
+                await PushNotifications.register();
+
+                // Listen for registration success
+                PushNotifications.addListener('registration', async (token) => {
+                    const { data: { user } } = await supabase.auth.getUser();
+                    if (!user || !selectedStudent?.school_id) return;
+
+                    await supabase
+                        .from('user_push_subscriptions')
+                        .upsert({
+                            user_id: user.id,
+                            school_id: selectedStudent.school_id,
+                            subscription: { token: token.value, type: 'fcm' },
+                            user_agent: 'Capacitor-Android'
+                        }, { onConflict: 'user_id, school_id, subscription' });
+
+                    setPermission('granted');
+                    setShowPrompt(false);
+                });
+
+                return;
+            }
+
+            // WEB PWA FALLBACK (Original code)
+            const reg = await navigator.serviceWorker.ready;
             const subscription = await reg.pushManager.subscribe({
                 userVisibleOnly: true,
                 applicationServerKey: urlBase64ToUint8Array(process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY!)
@@ -37,7 +75,6 @@ export const PushNotificationManager = () => {
             const { data: { user } } = await supabase.auth.getUser();
             if (!user || !selectedStudent?.school_id) return;
 
-            // Save to DB (Correct table: user_push_subscriptions)
             const { error } = await supabase
                 .from('user_push_subscriptions')
                 .upsert({
@@ -48,7 +85,6 @@ export const PushNotificationManager = () => {
                 }, { onConflict: 'user_id, school_id, subscription' });
 
             if (error) throw error;
-
             setPermission('granted');
             setShowPrompt(false);
         } catch (err) {

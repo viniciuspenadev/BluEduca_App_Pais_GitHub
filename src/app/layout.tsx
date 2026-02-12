@@ -23,6 +23,7 @@ export const viewport = {
 };
 
 import QueryProvider from '@/providers/QueryProvider';
+import { CapacitorManager } from '@/components/layout/CapacitorManager';
 
 export default function RootLayout({
   children,
@@ -32,6 +33,7 @@ export default function RootLayout({
   return (
     <html lang="pt-BR" className={`${inter.variable}`} suppressHydrationWarning>
       <body className="antialiased min-h-screen bg-gray-50 text-gray-900 font-sans">
+        <CapacitorManager />
         <QueryProvider>
           {children}
         </QueryProvider>

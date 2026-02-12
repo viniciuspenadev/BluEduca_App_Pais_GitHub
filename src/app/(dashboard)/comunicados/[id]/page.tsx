@@ -63,7 +63,40 @@ export default function CommunicationDetailPage() {
     const inputRef = useRef<HTMLDivElement>(null);
     const [isEmojiPickerOpen, setIsEmojiPickerOpen] = useState(false);
     const [isExiting, setIsExiting] = useState(false);
+    const [isSubmittingWidget, setIsSubmittingWidget] = useState(false);
     const bottomRef = useRef<HTMLDivElement>(null);
+
+    const handleWidgetResponse = async (option: string) => {
+        if (!recipient) return;
+        setIsSubmittingWidget(true);
+        try {
+            const responsePayload = {
+                selected_option: option,
+                answered_at: new Date().toISOString()
+            };
+
+            const { data, error } = await supabase
+                .from('communication_recipients')
+                .update({ response: responsePayload })
+                .eq('communication_id', recipient.communication_id)
+                .eq('guardian_id', recipient.guardian_id)
+                .select();
+
+            if (error) throw error;
+
+            // Optimistic Update
+            queryClient.setQueryData(['communication', id], (old: any) => ({
+                ...old,
+                response: responsePayload
+            }));
+
+        } catch (error) {
+            console.error('Error saving response:', error);
+            alert('Erro ao salvar resposta.');
+        } finally {
+            setIsSubmittingWidget(false);
+        }
+    };
 
     // Viewport logic and body scroll lock
     useEffect(() => {
@@ -235,77 +268,173 @@ export default function CommunicationDetailPage() {
             <main className="flex-1 overflow-y-auto bg-[#F2F2F7] px-4 py-6 space-y-6">
                 <div className="max-w-xl mx-auto space-y-8">
                     {/* Mensagem Original (Card) */}
+                    {/* Mensagem Original (Card) */}
                     {recipient && (
-                        <article className="bg-white rounded-[24px] shadow-sm border border-gray-100 overflow-hidden">
-                            <div className="p-6">
-                                <div className="flex items-center justify-between mb-4">
-                                    <div className="flex items-center gap-2">
-                                        <div className="w-8 h-8 rounded-full bg-gray-50 flex items-center justify-center text-xs font-black text-gray-400">
-                                            {(Array.isArray(recipient.communication.sender_profile) ? recipient.communication.sender_profile[0]?.name : recipient.communication.sender_profile?.name)?.charAt(0) || 'E'}
+                        <>
+                            <article className="bg-white rounded-[24px] shadow-sm border border-gray-100 overflow-hidden">
+                                <div className="p-6">
+                                    <div className="flex items-center justify-between mb-4">
+                                        <div className="flex items-center gap-2">
+                                            <div className="w-8 h-8 rounded-full bg-gray-50 flex items-center justify-center text-xs font-black text-gray-400">
+                                                {(Array.isArray(recipient.communication.sender_profile) ? recipient.communication.sender_profile[0]?.name : recipient.communication.sender_profile?.name)?.charAt(0) || 'E'}
+                                            </div>
+                                            <span className="text-xs font-bold text-gray-900">
+                                                {(Array.isArray(recipient.communication.sender_profile) ? recipient.communication.sender_profile[0]?.name : recipient.communication.sender_profile?.name) || 'Escola'}
+                                            </span>
                                         </div>
-                                        <span className="text-xs font-bold text-gray-900">
-                                            {(Array.isArray(recipient.communication.sender_profile) ? recipient.communication.sender_profile[0]?.name : recipient.communication.sender_profile?.name) || 'Escola'}
-                                        </span>
+                                        <time className="text-[10px] font-bold text-gray-400 uppercase">
+                                            {format(new Date(recipient.communication.created_at), "dd MMM, HH:mm", { locale: ptBR })}
+                                        </time>
                                     </div>
-                                    <time className="text-[10px] font-bold text-gray-400 uppercase">
-                                        {format(new Date(recipient.communication.created_at), "dd MMM, HH:mm", { locale: ptBR })}
-                                    </time>
+
+                                    {/* Status Tags / Badges */}
+                                    <div className="flex flex-wrap gap-2 mb-4">
+                                        {/* Urgent Badge */}
+                                        {recipient.communication.priority === 2 && (
+                                            <div className="flex items-center gap-1 bg-rose-50 text-rose-600 px-2.5 py-1 rounded-lg border border-rose-100 text-[10px] font-bold uppercase tracking-widest">
+                                                <Zap size={12} strokeWidth={3} className="fill-rose-600" />
+                                                Urgente
+                                            </div>
+                                        )}
+
+                                        {/* Class Badge */}
+                                        {recipient.communication.target_type === 'CLASS' && recipient.student?.class_enrollments?.[0]?.class?.name && (
+                                            <div className="flex items-center gap-1 px-2.5 py-1 rounded bg-slate-100 text-slate-500 text-[10px] font-bold uppercase tracking-widest border border-slate-200/50">
+                                                <Users size={12} />
+                                                {recipient.student.class_enrollments[0].class.name}
+                                            </div>
+                                        )}
+
+                                        {/* Action Required / RSVP / Poll */}
+                                        {(recipient.communication.metadata?.template === 'rsvp' || recipient.communication.metadata?.template === 'poll') && (
+                                            <div className={clsx(
+                                                "flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase tracking-[0.1em] border",
+                                                recipient.response ? 'bg-emerald-50 text-emerald-600 border-emerald-100' : 'bg-amber-50 text-amber-600 border-amber-100'
+                                            )}>
+                                                {recipient.communication.metadata.template === 'rsvp' ? (
+                                                    <CalendarCheck size={12} />
+                                                ) : (
+                                                    <BarChart2 size={12} />
+                                                )}
+                                                {recipient.communication.metadata.template === 'rsvp'
+                                                    ? (recipient.response ? 'Confirmado' : 'Responder RSVP')
+                                                    : (recipient.response ? 'Votado' : 'Votar Agora')
+                                                }
+                                            </div>
+                                        )}
+
+                                        {/* Generic Action Pending (if not covered above) */}
+                                        {((recipient.communication.metadata?.template === 'rsvp' || recipient.communication.metadata?.template === 'poll') && !recipient.response) && (
+                                            <div className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-amber-50 text-amber-600 border border-amber-100 text-[10px] font-bold uppercase tracking-widest">
+                                                <Flame size={12} strokeWidth={2.5} />
+                                                Ação Pendente
+                                            </div>
+                                        )}
+                                    </div>
+
+                                    <h2 className="text-xl font-black text-gray-900 mb-4 leading-tight">
+                                        {recipient.communication.title}
+                                    </h2>
+                                    <div
+                                        className="prose prose-slate max-w-none text-gray-700 text-sm leading-relaxed"
+                                        dangerouslySetInnerHTML={{ __html: recipient.communication.content }}
+                                    />
                                 </div>
+                            </article>
 
-                                {/* Status Tags / Badges */}
-                                <div className="flex flex-wrap gap-2 mb-4">
-                                    {/* Urgent Badge */}
-                                    {recipient.communication.priority === 2 && (
-                                        <div className="flex items-center gap-1 bg-rose-50 text-rose-600 px-2.5 py-1 rounded-lg border border-rose-100 text-[10px] font-bold uppercase tracking-widest">
-                                            <Zap size={12} strokeWidth={3} className="fill-rose-600" />
-                                            Urgente
-                                        </div>
-                                    )}
-
-                                    {/* Class Badge */}
-                                    {recipient.communication.target_type === 'CLASS' && recipient.student?.class_enrollments?.[0]?.class?.name && (
-                                        <div className="flex items-center gap-1 px-2.5 py-1 rounded bg-slate-100 text-slate-500 text-[10px] font-bold uppercase tracking-widest border border-slate-200/50">
-                                            <Users size={12} />
-                                            {recipient.student.class_enrollments[0].class.name}
-                                        </div>
-                                    )}
-
-                                    {/* Action Required / RSVP / Poll */}
-                                    {(recipient.communication.metadata?.template === 'rsvp' || recipient.communication.metadata?.template === 'poll') && (
+                            {/* Interactive Widgets (RSVP & Polls) */}
+                            {(recipient.communication.metadata?.template === 'rsvp' || recipient.communication.metadata?.template === 'poll') && (
+                                <div className="bg-white rounded-[24px] shadow-sm border border-gray-100 overflow-hidden p-6 space-y-4">
+                                    <div className="flex items-center gap-3">
                                         <div className={clsx(
-                                            "flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase tracking-[0.1em] border",
-                                            recipient.response ? 'bg-emerald-50 text-emerald-600 border-emerald-100' : 'bg-amber-50 text-amber-600 border-amber-100'
+                                            "w-10 h-10 flex items-center justify-center rounded-xl",
+                                            recipient.communication.metadata.template === 'rsvp' ? "bg-blue-50 text-blue-600" : "bg-purple-50 text-purple-600"
                                         )}>
-                                            {recipient.communication.metadata.template === 'rsvp' ? (
-                                                <CalendarCheck size={12} />
-                                            ) : (
-                                                <BarChart2 size={12} />
-                                            )}
-                                            {recipient.communication.metadata.template === 'rsvp'
-                                                ? (recipient.response ? 'Confirmado' : 'Responder RSVP')
-                                                : (recipient.response ? 'Votado' : 'Votar Agora')
-                                            }
+                                            {recipient.communication.metadata.template === 'rsvp' ? <CalendarCheck size={20} /> : <BarChart2 size={20} />}
                                         </div>
+                                        <div>
+                                            <h3 className="text-sm font-black text-gray-900 uppercase tracking-wider">
+                                                {recipient.communication.metadata.template === 'rsvp' ? 'Confirmação de Presença' : 'Enquete / Votação'}
+                                            </h3>
+                                            <p className="text-xs text-gray-500 font-medium">Sua resposta é importante</p>
+                                        </div>
+                                    </div>
+
+                                    {/* Question for Poll */}
+                                    {recipient.communication.metadata.template === 'poll' && recipient.communication.metadata.question && (
+                                        <p className="text-sm font-bold text-gray-800">
+                                            {recipient.communication.metadata.question}
+                                        </p>
                                     )}
 
-                                    {/* Generic Action Pending (if not covered above) */}
-                                    {((recipient.communication.metadata?.template === 'rsvp' || recipient.communication.metadata?.template === 'poll') && !recipient.response) && (
-                                        <div className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-amber-50 text-amber-600 border border-amber-100 text-[10px] font-bold uppercase tracking-widest">
-                                            <Flame size={12} strokeWidth={2.5} />
-                                            Ação Pendente
-                                        </div>
-                                    )}
+                                    {/* Interactive Buttons */}
+                                    <div className="space-y-2 pt-2">
+                                        {recipient.communication.metadata.template === 'rsvp' ? (
+                                            <>
+                                                {/* RSVP Options */}
+                                                <button
+                                                    onClick={() => handleWidgetResponse('Estarei Presente')}
+                                                    disabled={!!recipient.response || isSubmittingWidget}
+                                                    className={clsx(
+                                                        "w-full py-3 px-4 rounded-xl flex items-center justify-between transition-all font-bold text-sm",
+                                                        recipient.response?.selected_option === 'Estarei Presente'
+                                                            ? "bg-emerald-100 text-emerald-700 border border-emerald-200" // Selected
+                                                            : recipient.response
+                                                                ? "bg-gray-50 text-gray-400 border border-gray-100 opacity-50" // Not selected but voted
+                                                                : "bg-white border-2 border-slate-100 hover:border-emerald-500 hover:text-emerald-600 text-slate-600" // Default
+                                                    )}
+                                                >
+                                                    <span className="flex items-center gap-2">
+                                                        <CheckCheck size={16} /> Estarei Presente
+                                                    </span>
+                                                    {recipient.response?.selected_option === 'Estarei Presente' && <CheckCheck size={16} />}
+                                                </button>
+
+                                                <button
+                                                    onClick={() => handleWidgetResponse('Não Poderei Comparecer')}
+                                                    disabled={!!recipient.response || isSubmittingWidget}
+                                                    className={clsx(
+                                                        "w-full py-3 px-4 rounded-xl flex items-center justify-between transition-all font-bold text-sm",
+                                                        recipient.response?.selected_option === 'Não Poderei Comparecer'
+                                                            ? "bg-rose-100 text-rose-700 border border-rose-200" // Selected
+                                                            : recipient.response
+                                                                ? "bg-gray-50 text-gray-400 border border-gray-100 opacity-50" // Not selected but voted
+                                                                : "bg-white border-2 border-slate-100 hover:border-rose-500 hover:text-rose-600 text-slate-600" // Default
+                                                    )}
+                                                >
+                                                    <span className="flex items-center gap-2">
+                                                        <Icons.XCircle size={16} /> Não Poderei Comparecer
+                                                    </span>
+                                                    {recipient.response?.selected_option === 'Não Poderei Comparecer' && <CheckCheck size={16} />}
+                                                </button>
+                                            </>
+                                        ) : (
+                                            <>
+                                                {/* Poll Options */}
+                                                {recipient.communication.metadata.options?.map((option: string, idx: number) => (
+                                                    <button
+                                                        key={idx}
+                                                        onClick={() => handleWidgetResponse(option)}
+                                                        disabled={!!recipient.response || isSubmittingWidget}
+                                                        className={clsx(
+                                                            "w-full py-3 px-4 rounded-xl flex items-center justify-between transition-all font-bold text-sm",
+                                                            recipient.response?.selected_option === option
+                                                                ? "bg-purple-100 text-purple-700 border border-purple-200" // Selected
+                                                                : recipient.response
+                                                                    ? "bg-gray-50 text-gray-400 border border-gray-100 opacity-50" // Not selected but voted
+                                                                    : "bg-white border-2 border-slate-100 hover:border-purple-500 hover:text-purple-600 text-slate-600" // Default
+                                                        )}
+                                                    >
+                                                        <span>{option}</span>
+                                                        {recipient.response?.selected_option === option && <CheckCheck size={16} />}
+                                                    </button>
+                                                ))}
+                                            </>
+                                        )}
+                                    </div>
                                 </div>
-
-                                <h2 className="text-xl font-black text-gray-900 mb-4 leading-tight">
-                                    {recipient.communication.title}
-                                </h2>
-                                <div
-                                    className="prose prose-slate max-w-none text-gray-700 text-sm leading-relaxed"
-                                    dangerouslySetInnerHTML={{ __html: recipient.communication.content }}
-                                />
-                            </div>
-                        </article>
+                            )}
+                        </>
                     )}
 
                     {/* Respostas / Histórico */}
