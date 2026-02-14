@@ -4,25 +4,46 @@ import { useQuery } from '@tanstack/react-query';
 import { createClient } from '@/utils/supabase/client';
 import { useStudent } from '@/contexts/StudentContext';
 
+export interface AssessmentPeriod {
+    id: string;
+    period_name: string;
+    period_number: number;
+    status: string;
+}
+
 export interface GradeBook {
     id: string;
     title: string;
-    term: string;
+    period_id: string;
     subject: string;
     max_score: number;
     weight: number;
     date: string;
+    assessment_type: 'numeric' | 'concept' | 'descriptive' | 'diagnostic';
 }
 
-export interface StudentGrade {
-    grade_book_id: string;
-    score: number;
+export interface Grade {
+    id: string;
+    assessment_id: string;
+    score_numeric?: number;
+    score_concept?: string;
+    score_descriptive?: string;
+    score_diagnostic?: any;
+    updated_at: string;
+    created_at?: string;
+    author_name?: string;
 }
 
 export interface SubjectData {
     name: string;
     terms: Record<string, {
-        assessments: (GradeBook & { grade?: number })[];
+        assessments: (GradeBook & {
+            grade?: number;
+            grade_concept?: string;
+            grade_descriptive?: string;
+            author_name?: string;
+            created_at?: string;
+        })[];
         totalScore: number;
         maxPossible: number;
     }>;
@@ -46,9 +67,26 @@ export const useGrades = () => {
             if (enrollError) throw enrollError;
 
             const classIds = enrollments?.map(e => e.class_id) || [];
-            if (classIds.length === 0) return [];
+            if (classIds.length === 0) return { subjects: [], periods: [] };
 
-            // 2. Fetch Grade Books
+            // 2. Fetch Assessment Periods for the school (via student's class)
+            // We'll get school_id from the first class found
+            const { data: classData } = await supabase
+                .from('classes')
+                .select('school_id')
+                .eq('id', classIds[0])
+                .single();
+
+            const { data: periods, error: pError } = await supabase
+                .from('assessment_periods')
+                .select('*')
+                .eq('school_id', classData?.school_id)
+                .eq('school_year', selectedStudent!.academic_year)
+                .order('period_number', { ascending: true });
+
+            if (pError) throw pError;
+
+            // 3. Fetch Grade Books
             const { data: gradeBooks, error: gbError } = await supabase
                 .from('grade_books')
                 .select('*')
@@ -57,20 +95,25 @@ export const useGrades = () => {
 
             if (gbError) throw gbError;
 
-            // 3. Fetch Student Grades
+            // 3. Fetch Grades for this student in these classes
+            const assessmentIds = gradeBooks?.map(gb => gb.id) || [];
             const { data: grades, error: gError } = await supabase
                 .from('student_grades')
-                .select('*')
+                .select(`
+                    *,
+                    author:profiles!created_by(name)
+                `)
                 .eq('student_id', selectedStudent!.id)
-                .in('grade_book_id', gradeBooks?.map(gb => gb.id) || []);
+                .in('grade_book_id', assessmentIds);
 
             if (gError) throw gError;
 
-            // 4. Transform and Calculate
+            // 5. Transform and Calculate
             const subjectMap: Record<string, SubjectData> = {};
 
             gradeBooks?.forEach((gb) => {
                 const subjectName = gb.subject || 'Geral';
+                const periodId = gb.period_id;
 
                 if (!subjectMap[subjectName]) {
                     subjectMap[subjectName] = {
@@ -79,31 +122,34 @@ export const useGrades = () => {
                     };
                 }
 
-                if (!subjectMap[subjectName].terms[gb.term]) {
-                    subjectMap[subjectName].terms[gb.term] = {
+                if (!subjectMap[subjectName].terms[periodId]) {
+                    subjectMap[subjectName].terms[periodId] = {
                         assessments: [],
                         totalScore: 0,
                         maxPossible: 10
                     };
                 }
 
-                const grade = grades?.find(g => g.grade_book_id === gb.id);
-                subjectMap[subjectName].terms[gb.term].assessments.push({
+                const gradeRecord = grades?.find(g => g.grade_book_id === gb.id);
+
+                subjectMap[subjectName].terms[periodId].assessments.push({
                     ...gb,
-                    grade: grade?.score
+                    grade: gradeRecord?.score_numeric ?? undefined,
+                    grade_concept: gradeRecord?.score_concept ?? undefined,
+                    grade_descriptive: gradeRecord?.score_descriptive ?? undefined
                 });
             });
 
-            // Calculate Weighted Averages
+            // Calculate Weighted Averages (Numeric Only)
             Object.values(subjectMap).forEach(subject => {
                 Object.values(subject.terms).forEach(term => {
                     let totalWeightedScore = 0;
                     let totalWeight = 0;
 
                     term.assessments.forEach(assessment => {
-                        if (assessment.grade !== undefined) {
-                            totalWeightedScore += assessment.grade * assessment.weight;
-                            totalWeight += assessment.weight;
+                        if (assessment.assessment_type === 'numeric' && assessment.grade !== undefined) {
+                            totalWeightedScore += assessment.grade * (assessment.weight || 1);
+                            totalWeight += (assessment.weight || 1);
                         }
                     });
 
@@ -111,7 +157,10 @@ export const useGrades = () => {
                 });
             });
 
-            return Object.values(subjectMap).sort((a, b) => a.name.localeCompare(b.name));
+            return {
+                subjects: Object.values(subjectMap).sort((a, b) => a.name.localeCompare(b.name)),
+                periods: periods || []
+            };
         }
     });
 };

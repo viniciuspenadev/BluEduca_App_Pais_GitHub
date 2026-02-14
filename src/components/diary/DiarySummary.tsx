@@ -21,29 +21,34 @@ export const DiarySummary = ({
     if (totalReports === 0) return null;
 
     return (
-        <div className="bg-white/90 backdrop-blur-md border border-gray-100 rounded-2xl p-4 shadow-sm ring-1 ring-black/5 mt-4">
-            <div className="flex items-center justify-between text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-3">
-                <span>📊 Resumo - {periodLabel}</span>
-                <span className="bg-brand-50 text-brand-600 px-2 py-0.5 rounded-full">{totalReports} registros</span>
+        <div className="bg-white/70 backdrop-blur-xl border border-slate-100 shadow-lg shadow-slate-200/50 rounded-2xl p-6 mb-8 mt-2 transition-all duration-500 hover:shadow-xl hover:shadow-brand-100/50">
+            <div className="flex items-center justify-between mb-5 px-1">
+                <div className="flex flex-col">
+                    <span className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 opacity-60 leading-none mb-1">Estatísticas</span>
+                    <h4 className="text-sm font-bold text-slate-800 tracking-tight">Resumo - {periodLabel}</h4>
+                </div>
+                <span className="bg-brand-50 text-brand-600 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider border border-brand-100/50 shadow-sm">
+                    {totalReports} registros
+                </span>
             </div>
             <div className="grid grid-cols-3 gap-3">
-                <div className="bg-green-50/50 rounded-xl p-3 border border-green-100 flex flex-col items-center justify-center text-center">
-                    <span className="text-lg font-bold text-green-700">{totalPresent}</span>
-                    <span className="text-[10px] uppercase font-bold text-green-600/70 flex items-center gap-1">
-                        <CheckCircle2 size={10} /> Presenças
-                    </span>
+                <div className="bg-emerald-50/40 rounded-2xl p-4 border border-emerald-100/40 flex flex-col items-center justify-center text-center transition-transform hover:scale-[1.02]">
+                    <span className="text-xl font-black text-emerald-600 leading-none mb-2">{totalPresent}</span>
+                    <div className="flex items-center gap-1.5 text-[9px] uppercase font-black text-emerald-700/50 tracking-tight">
+                        <CheckCircle2 size={12} className="opacity-60" /> Presenças
+                    </div>
                 </div>
-                <div className="bg-blue-50/50 rounded-xl p-3 border border-blue-100 flex flex-col items-center justify-center text-center">
-                    <span className="text-lg font-bold text-blue-700">{totalHomework}</span>
-                    <span className="text-[10px] uppercase font-bold text-blue-600/70 flex items-center gap-1">
-                        <BookOpen size={10} /> Lições
-                    </span>
+                <div className="bg-brand-50/40 rounded-2xl p-4 border border-brand-100/40 flex flex-col items-center justify-center text-center transition-transform hover:scale-[1.02]">
+                    <span className="text-xl font-black text-brand-600 leading-none mb-2">{totalHomework}</span>
+                    <div className="flex items-center gap-1.5 text-[9px] uppercase font-black text-brand-700/50 tracking-tight">
+                        <BookOpen size={12} className="opacity-60" /> Lições
+                    </div>
                 </div>
-                <div className="bg-amber-50/50 rounded-xl p-3 border border-amber-100 flex flex-col items-center justify-center text-center">
-                    <span className="text-lg font-bold text-amber-700">{totalObservations}</span>
-                    <span className="text-[10px] uppercase font-bold text-amber-600/70 flex items-center gap-1">
-                        <AlertCircle size={10} /> Obs.
-                    </span>
+                <div className="bg-amber-50/40 rounded-2xl p-4 border border-amber-100/40 flex flex-col items-center justify-center text-center transition-transform hover:scale-[1.02]">
+                    <span className="text-xl font-black text-amber-600 leading-none mb-2">{totalObservations}</span>
+                    <div className="flex items-center gap-1.5 text-[9px] uppercase font-black text-amber-700/50 tracking-tight">
+                        <AlertCircle size={12} className="opacity-60" /> Obs.
+                    </div>
                 </div>
             </div>
         </div>

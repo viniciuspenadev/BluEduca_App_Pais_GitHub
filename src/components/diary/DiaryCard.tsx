@@ -1,9 +1,11 @@
 'use client';
 
 import { type FC, memo } from 'react';
-import { ChevronRight, Utensils, Moon, Smile, Droplets, Book } from 'lucide-react';
+import { ChevronRight, Utensils, Moon, Smile, Droplets, Book, Lock } from 'lucide-react';
 import { format, isValid } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import { motion } from 'framer-motion';
+import { clsx } from 'clsx';
 
 interface DiaryCardProps {
     report: any;
@@ -19,7 +21,7 @@ export const DiaryCard: FC<DiaryCardProps> = memo(({ report, onToggle, isLocked 
         : 'Data inválida';
 
     const getCardSummary = (r: any) => {
-        if (isLocked) return `🔒 Disponível após as ${releaseTime}h`;
+        if (isLocked) return `Disponível às ${releaseTime}h hoje`;
 
         // Prioritize Routine highlights
         const highlights = [];
@@ -30,60 +32,99 @@ export const DiaryCard: FC<DiaryCardProps> = memo(({ report, onToggle, isLocked 
         if (highlights.length > 0) return highlights.join(' • ');
 
         // Fallback to text fields
-        if (r.homework) return `📚 ${r.homework.split('\n')[0]}`;
-        if (r.activities) return `🎨 ${r.activities.split('\n')[0]}`;
-        if (r.observations) return `📝 ${r.observations.split('\n')[0]}`;
+        if (r.homework) return r.homework.split('\n')[0];
+        if (r.activities) return r.activities.split('\n')[0];
+        if (r.observations) return r.observations.split('\n')[0];
 
-        return 'Toque para ver os detalhes';
+        return 'Toque para ver os detalhes do dia';
     };
 
     const StatusIcon = ({ status }: { status?: string }) => {
         if (!status) return null;
-        if (status === 'present') return <span className="w-2 h-2 rounded-full bg-green-500 block" title="Presente" />;
-        if (status === 'absent') return <span className="w-2 h-2 rounded-full bg-red-500 block" title="Falta" />;
-        if (status === 'late') return <span className="w-2 h-2 rounded-full bg-orange-500 block" title="Atraso" />;
-        return <span className="w-2 h-2 rounded-full bg-blue-500 block" title="Justificado" />;
+        return (
+            <div className={clsx(
+                "w-2 h-2 rounded-full ring-4 transition-all duration-500",
+                status === 'present' ? 'bg-emerald-500 ring-emerald-500/10' :
+                    status === 'absent' ? 'bg-rose-500 ring-rose-500/10' :
+                        status === 'late' ? 'bg-amber-500 ring-amber-500/10' :
+                            'bg-blue-500 ring-blue-500/10'
+            )} />
+        );
     };
 
     return (
-        <div
+        <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            whileHover={{ scale: isLocked ? 1 : 1.01 }}
+            whileTap={{ scale: isLocked ? 1 : 0.98 }}
             onClick={() => !isLocked && onToggle(report)}
-            className={`
-                group bg-white rounded-2xl border border-gray-100 shadow-sm p-4 cursor-pointer 
-                transition-all hover:shadow-md hover:border-brand-200 active:scale-[0.98]
-                ${isLocked ? 'opacity-75 bg-gray-50 grayscale' : ''}
-            `}
+            className={clsx(
+                "group relative bg-white rounded-2xl border border-slate-100 shadow-lg shadow-slate-200/30 p-5 cursor-pointer overflow-hidden",
+                "transition-all duration-300 hover:shadow-xl hover:shadow-brand-100/40 hover:border-brand-100",
+                isLocked && "opacity-80 bg-slate-50 border-slate-200 cursor-not-allowed"
+            )}
         >
             <div className="flex items-center justify-between gap-4">
                 <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 mb-1">
-                        <StatusIcon status={report.attendance_status} />
-                        <h2 className="text-sm font-bold text-gray-800 capitalize truncate">
+                    <div className="flex items-center gap-2.5 mb-2">
+                        {!isLocked && <StatusIcon status={report.attendance_status} />}
+                        {isLocked && <Lock size={12} className="text-slate-400" />}
+                        <h2 className={clsx(
+                            "text-sm font-black tracking-tight leading-none capitalize",
+                            isLocked ? "text-slate-400" : "text-slate-800"
+                        )}>
                             {dateStr}
                         </h2>
                     </div>
 
-                    <div className="flex items-center justify-between mt-1.5">
-                        <p className={`text-xs font-medium truncate flex-1 pr-2 ${isLocked ? 'text-gray-400' : 'text-gray-600'}`}>
+                    <div className="flex items-center justify-between">
+                        <p className={clsx(
+                            "text-xs font-bold truncate flex-1 leading-snug tracking-tight",
+                            isLocked ? 'text-slate-400 font-medium' : 'text-slate-600'
+                        )}>
                             {getCardSummary(report)}
                         </p>
                     </div>
 
-                    {/* Mini Icons for quick status */}
+                    {/* Indicators Grid */}
                     {!isLocked && (
-                        <div className="flex gap-2 mt-2">
-                            {report.routine_data?.meals && <Utensils size={14} className="text-orange-400" />}
-                            {report.routine_data?.sleep && <Moon size={14} className="text-indigo-400" />}
-                            {report.routine_data?.mood && <Smile size={14} className="text-yellow-400" />}
-                            {(report.homework || report.activities) && <Book size={14} className="text-blue-400" />}
+                        <div className="flex gap-4 mt-3 pt-3 border-t border-slate-50">
+                            {report.routine_data?.meals && (
+                                <div className="flex items-center gap-1.5 text-orange-500/60">
+                                    <Utensils size={14} className="stroke-[3]" />
+                                    <span className="text-[9px] font-black uppercase tracking-widest text-orange-700/40">Refeições</span>
+                                </div>
+                            )}
+                            {report.routine_data?.sleep && (
+                                <div className="flex items-center gap-1.5 text-indigo-500/60">
+                                    <Moon size={14} className="stroke-[3]" />
+                                    <span className="text-[9px] font-black uppercase tracking-widest text-indigo-700/40">Sono</span>
+                                </div>
+                            )}
+                            {(report.homework || report.activities) && (
+                                <div className="flex items-center gap-1.5 text-brand-500/60">
+                                    <Book size={14} className="stroke-[3]" />
+                                    <span className="text-[9px] font-black uppercase tracking-widest text-brand-700/40">Pedagógico</span>
+                                </div>
+                            )}
                         </div>
                     )}
                 </div>
 
-                <div className="w-8 h-8 rounded-full bg-gray-50 flex items-center justify-center text-gray-400 group-hover:bg-brand-50 group-hover:text-brand-600 transition-colors">
-                    <ChevronRight size={18} />
+                <div className={clsx(
+                    "w-10 h-10 rounded-2xl flex items-center justify-center transition-all duration-300",
+                    isLocked ? "bg-slate-200/50 text-slate-400" : "bg-slate-50 text-slate-400 group-hover:bg-brand-600 group-hover:text-white group-hover:shadow-lg group-hover:shadow-brand-200"
+                )}>
+                    <ChevronRight size={20} className={clsx("transition-transform", !isLocked && "group-hover:translate-x-0.5")} />
                 </div>
             </div>
-        </div>
+
+            {/* Subtle Gradient Overlay for Premium Feel */}
+            {!isLocked && (
+                <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-brand-500/5 to-transparent rounded-full -mr-16 -mt-16 opacity-0 group-hover:opacity-100 transition-opacity duration-700" />
+            )}
+        </motion.div>
     );
 });
+
