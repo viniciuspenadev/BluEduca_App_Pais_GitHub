@@ -22,20 +22,6 @@ export const DiaryCard: FC<DiaryCardProps> = memo(({ report, onToggle, isLocked 
 
     const getCardSummary = (r: any) => {
         if (isLocked) return `Disponível às ${releaseTime}h hoje`;
-
-        // Prioritize Routine highlights
-        const highlights = [];
-        if (r.routine_data?.meals?.lunch) highlights.push(r.routine_data.meals.lunch);
-        if (r.routine_data?.sleep?.nap) highlights.push(r.routine_data.sleep.nap);
-        if (r.routine_data?.mood) highlights.push(r.routine_data.mood);
-
-        if (highlights.length > 0) return highlights.join(' • ');
-
-        // Fallback to text fields
-        if (r.homework) return r.homework.split('\n')[0];
-        if (r.activities) return r.activities.split('\n')[0];
-        if (r.observations) return r.observations.split('\n')[0];
-
         return 'Toque para ver os detalhes do dia';
     };
 
@@ -87,29 +73,7 @@ export const DiaryCard: FC<DiaryCardProps> = memo(({ report, onToggle, isLocked 
                         </p>
                     </div>
 
-                    {/* Indicators Grid */}
-                    {!isLocked && (
-                        <div className="flex gap-4 mt-3 pt-3 border-t border-slate-50">
-                            {report.routine_data?.meals && (
-                                <div className="flex items-center gap-1.5 text-orange-500/60">
-                                    <Utensils size={14} className="stroke-[3]" />
-                                    <span className="text-[9px] font-black uppercase tracking-widest text-orange-700/40">Refeições</span>
-                                </div>
-                            )}
-                            {report.routine_data?.sleep && (
-                                <div className="flex items-center gap-1.5 text-indigo-500/60">
-                                    <Moon size={14} className="stroke-[3]" />
-                                    <span className="text-[9px] font-black uppercase tracking-widest text-indigo-700/40">Sono</span>
-                                </div>
-                            )}
-                            {(report.homework || report.activities) && (
-                                <div className="flex items-center gap-1.5 text-brand-500/60">
-                                    <Book size={14} className="stroke-[3]" />
-                                    <span className="text-[9px] font-black uppercase tracking-widest text-brand-700/40">Pedagógico</span>
-                                </div>
-                            )}
-                        </div>
-                    )}
+                    {/* Repetitive indicators removed per user request */}
                 </div>
 
                 <div className={clsx(
