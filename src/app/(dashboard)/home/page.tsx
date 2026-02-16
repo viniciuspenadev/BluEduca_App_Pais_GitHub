@@ -253,7 +253,7 @@ export default function HomePage() {
                 />
 
                 {/* 2. CAMADA DE INFO: Avatar e Dados (Sobre o Azul) */}
-                <div className="relative z-10 px-6 pt-safe-area pt-8" ref={switcherRef}>
+                <div className="relative z-30 px-6 pt-safe-area pt-8" ref={switcherRef}>
                     <div className="flex justify-between items-center mb-10">
                         <div className="flex items-center gap-4">
                             {/* Avatar & Selector Button */}
