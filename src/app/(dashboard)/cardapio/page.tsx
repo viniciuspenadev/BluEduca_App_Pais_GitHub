@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { createClient } from '@/utils/supabase/client';
 import { useStudent } from '@/contexts/StudentContext';
@@ -9,10 +9,17 @@ import { format, startOfWeek, addDays, isSameDay, getDay } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { useRouter } from 'next/navigation';
 
+interface Meal {
+    id: string;
+    title: string;
+    description: string;
+    tags: string[];
+}
+
 interface MenuTemplate {
     id: string;
     name: string;
-    content: Record<string, { title: string, description: string }>;
+    content: Record<string, Meal[]>;
     is_active: boolean;
 }
 
@@ -26,9 +33,31 @@ const fetchActiveTemplate = async (schoolId?: string) => {
         .select('*')
         .eq('school_id', schoolId)
         .eq('is_active', true)
-        .maybeSingle(); // Use maybeSingle to avoid error if none
+        .maybeSingle();
 
     if (error) throw error;
+
+    // Migrate on the fly to support both old format (object) and new format (array of meals)
+    if (data && data.content) {
+        const newContent: Record<string, Meal[]> = {};
+        Object.keys(data.content).forEach(day => {
+            const dayData = data.content[day];
+            if (Array.isArray(dayData)) {
+                newContent[day] = dayData;
+            } else if (typeof dayData === 'object' && dayData !== null) {
+                newContent[day] = [{
+                    id: Math.random().toString(36).substr(2, 9),
+                    title: dayData.title || 'Almoço',
+                    description: dayData.description || '',
+                    tags: []
+                }];
+            } else {
+                newContent[day] = [];
+            }
+        });
+        data.content = newContent;
+    }
+
     return data as MenuTemplate | null;
 };
 
@@ -36,8 +65,7 @@ export default function LunchMenuPage() {
     const { selectedStudent, loading: studentLoading } = useStudent();
     const router = useRouter();
     const [selectedDate, setSelectedDate] = useState<Date>(new Date());
-    const [weekStart, setWeekStart] = useState<Date>(startOfWeek(new Date(), { weekStartsOn: 1 })); // Monday start preferred? Original used default which is Sunday? 
-    // Original used `startOfWeek(new Date(), { weekStartsOn: 1 })` (Line 23 of ParentLunchMenu.tsx).
+    const [weekStart, setWeekStart] = useState<Date>(startOfWeek(new Date(), { weekStartsOn: 1 }));
 
     // Fetch Template
     const { data: activeTemplate, isLoading } = useQuery({
@@ -58,14 +86,15 @@ export default function LunchMenuPage() {
         enabled: !!selectedStudent?.enrollment_id
     });
 
-    const getDayContent = (date: Date) => {
-        if (!activeTemplate?.content) return null;
+    const getDayMeals = (date: Date): Meal[] => {
+        if (!activeTemplate?.content) return [];
         const dayIndex = getDay(date);
         const key = WEEK_KEYS[dayIndex];
-        return activeTemplate.content[key];
+        return activeTemplate.content[key] || [];
     };
 
-    const currentContent = getDayContent(selectedDate);
+    const currentMeals = getDayMeals(selectedDate);
+    const hasAnyMenuForSelectedDay = currentMeals.length > 0;
 
     if (studentLoading) return <div className="p-12 flex justify-center"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-brand-500"></div></div>;
 
@@ -97,8 +126,8 @@ export default function LunchMenuPage() {
                         {Array.from({ length: 7 }).map((_, idx) => {
                             const day = addDays(weekStart, idx);
                             const isSelected = isSameDay(day, selectedDate);
-                            const dayContent = getDayContent(day);
-                            const hasMenu = dayContent && dayContent.description;
+                            const dayMeals = getDayMeals(day);
+                            const hasMenu = dayMeals.length > 0;
 
                             return (
                                 <button
@@ -148,30 +177,44 @@ export default function LunchMenuPage() {
                         <h3 className="text-lg font-bold text-gray-800 mb-1">Sem Cardápio Ativo</h3>
                         <p className="text-gray-500 text-sm">Nenhum cardápio foi publicado pela escola ainda.</p>
                     </div>
-                ) : !currentContent || !currentContent.description ? (
+                ) : !hasAnyMenuForSelectedDay ? (
                     <div className="bg-white p-12 rounded-3xl shadow-sm border border-gray-100 text-center">
                         <UtensilsCrossed size={48} className="text-gray-200 mx-auto mb-4" />
                         <h3 className="text-lg font-bold text-gray-800 mb-1">Nada cadastrado</h3>
-                        <p className="text-gray-500 text-sm">Não há informações para este dia.</p>
+                        <p className="text-gray-500 text-sm">Não há informações de refeições para este dia.</p>
                     </div>
                 ) : (
-                    <div className="bg-white rounded-3xl p-6 shadow-sm border border-gray-100 relative overflow-hidden group">
-                        <div className="absolute top-0 right-0 w-32 h-32 bg-brand-50 rounded-full -mr-16 -mt-16 group-hover:scale-110 transition-transform" />
-                        <div className="relative z-10">
-                            <div className="flex items-center gap-4 mb-6">
-                                <div className="w-12 h-12 rounded-xl bg-brand-100 text-brand-600 flex items-center justify-center">
-                                    <UtensilsCrossed size={24} />
-                                </div>
-                                <h3 className="font-bold text-gray-900 text-xl">{currentContent.title || 'Refeição do Dia'}</h3>
-                            </div>
+                    <div className="space-y-4">
+                        {currentMeals.map((meal) => (
+                            <div key={meal.id} className="bg-white rounded-3xl p-6 shadow-sm border border-gray-100 relative overflow-hidden group">
+                                <div className="absolute top-0 right-0 w-32 h-32 bg-brand-50 rounded-full -mr-16 -mt-16 group-hover:scale-110 transition-transform" />
+                                <div className="relative z-10">
+                                    <div className="flex items-center gap-4 mb-4">
+                                        <div className="w-12 h-12 rounded-xl bg-brand-100 text-brand-600 flex items-center justify-center shrink-0">
+                                            <UtensilsCrossed size={24} />
+                                        </div>
+                                        <h3 className="font-bold text-gray-900 text-xl">{meal.title || 'Refeição do Dia'}</h3>
+                                    </div>
 
-                            <div className="text-gray-700 leading-relaxed whitespace-pre-wrap text-lg font-medium p-4 bg-gray-50 rounded-2xl border border-gray-100">
-                                {currentContent.description}
+                                    <div className="text-gray-700 leading-relaxed whitespace-pre-wrap text-lg font-medium p-4 bg-gray-50 rounded-2xl border border-gray-100 mb-4">
+                                        {meal.description || 'Nenhum detalhe informado.'}
+                                    </div>
+
+                                    {meal.tags && meal.tags.length > 0 && (
+                                        <div className="flex flex-wrap gap-2 mt-2">
+                                            {meal.tags.map(tag => (
+                                                <div key={tag} className="flex items-center gap-1.5 px-3 py-1.5 bg-orange-50 text-orange-700 border border-orange-200 rounded-full text-xs font-semibold">
+                                                    <span>{tag}</span>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
+                                </div>
                             </div>
-                        </div>
+                        ))}
                     </div>
                 )}
             </div>
         </div>
     );
-};
+}

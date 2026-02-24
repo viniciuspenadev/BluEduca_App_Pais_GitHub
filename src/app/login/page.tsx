@@ -1,12 +1,15 @@
 'use client'
 
-import { useState, useTransition } from 'react';
+import { useState, useTransition, useEffect } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { Loader2, Mail, Lock, Eye, EyeOff } from 'lucide-react';
 import Image from 'next/image';
 import { ToastContainer, type ToastMessage } from '@/components/ui/Toast';
 import { login } from './actions';
 
 export default function LoginPage() {
+    const searchParams = useSearchParams();
+    const errorParam = searchParams?.get('error');
     const [isPending, startTransition] = useTransition();
     const [showPassword, setShowPassword] = useState(false);
     const [email, setEmail] = useState('');
@@ -20,6 +23,12 @@ export default function LoginPage() {
     };
 
     const removeToast = (id: string) => setToasts(prev => prev.filter(t => t.id !== id));
+
+    useEffect(() => {
+        if (errorParam) {
+            addToast(errorParam, 'error');
+        }
+    }, [errorParam]);
 
     const handleSubmit = async (formData: FormData) => {
         startTransition(async () => {

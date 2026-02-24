@@ -24,6 +24,16 @@ export default async function DashboardLayout({
         redirect('/login');
     }
 
+    const { data: profile } = await supabase
+        .from('profiles')
+        .select('role')
+        .eq('id', user.id)
+        .single();
+
+    if (profile?.role !== 'PARENT') {
+        redirect('/login?error=Acesso Negado. App exclusivo para Famílias.');
+    }
+
     // Pre-fetch critical data here if needed, or pass user to context
     // The StudentContext will handle fetching students client-side for now
     // to maintain parity with the original logic, which is complex.

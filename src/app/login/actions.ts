@@ -14,13 +14,26 @@ export async function login(prevState: any, formData: FormData) {
         return { error: 'E-mail e senha são obrigatórios.' }
     }
 
-    const { error } = await supabase.auth.signInWithPassword({
+    const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,
     })
 
     if (error) {
         return { error: error.message }
+    }
+
+    if (data?.user) {
+        const { data: profile } = await supabase
+            .from('profiles')
+            .select('role')
+            .eq('id', data.user.id)
+            .single()
+
+        if (profile?.role !== 'PARENT') {
+            await supabase.auth.signOut()
+            return { error: 'Acesso negado. Este aplicativo é exclusivo para pais e responsáveis.' }
+        }
     }
 
     revalidatePath('/', 'layout')
