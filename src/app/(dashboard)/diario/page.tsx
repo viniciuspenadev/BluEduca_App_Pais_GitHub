@@ -393,12 +393,6 @@ export default function DiaryPage() {
                                     <p className="text-sm font-bold text-slate-800 tracking-tight">{selectedReport.teacher?.name || 'Educador(a)'}</p>
                                 </div>
                             </div>
-                            <div className="text-right">
-                                <p className="text-[10px] font-black text-slate-400 leading-none uppercase tracking-[0.15em] mb-1.5 opacity-60">Horário do Registro</p>
-                                <p className="text-sm font-bold text-slate-800 tracking-tight">
-                                    {format(new Date(selectedReport.created_at || selectedReport.updated_at), 'HH:mm', { locale: ptBR })}h
-                                </p>
-                            </div>
                         </div>
                     </div>
                 )}
