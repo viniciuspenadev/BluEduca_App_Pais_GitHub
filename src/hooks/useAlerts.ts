@@ -8,6 +8,7 @@ export interface Alerts {
     messages: number;
     financial: number;
     total: number;
+    chat?: number;
 }
 
 const DEFAULT_TEMPLATES = [
@@ -101,10 +102,10 @@ export const useAlerts = () => {
         };
     }, [selectedStudent?.id, queryClient, supabase]);
 
-    const { data: alerts = { documents: 0, messages: 0, financial: 0, total: 0 }, isLoading } = useQuery({
+    const { data: alerts = { documents: 0, messages: 0, financial: 0, total: 0, chat: 0 }, isLoading } = useQuery({
         queryKey: ['alerts', selectedStudent?.id],
         queryFn: async (): Promise<Alerts> => {
-            if (!selectedStudent?.id) return { documents: 0, messages: 0, financial: 0, total: 0 };
+            if (!selectedStudent?.id) return { documents: 0, messages: 0, financial: 0, total: 0, chat: 0 };
 
             // 1. Check Documents
             let docCount = 0;
@@ -232,7 +233,8 @@ export const useAlerts = () => {
                 documents: docCount,
                 messages: msgCount,
                 financial: finCount,
-                total: docCount + msgCount + finCount
+                total: docCount + msgCount + finCount,
+                chat: 0 // To be implemented later with chat module unread count
             };
         },
         enabled: !!selectedStudent?.id,

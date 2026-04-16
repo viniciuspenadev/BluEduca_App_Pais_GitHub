@@ -39,9 +39,9 @@ export default function MenuPage() {
     const { selectedStudent } = useStudent();
     const { alerts } = useAlerts();
 
-    // TODO: Implement proper plan checks
-    // For now assuming all enabled
-    const hasModule = (module: string) => true;
+    const hasModule = (module: string) => {
+        return !!selectedStudent?.config_modules?.[module];
+    };
 
     // Determine badge based on pending docs
 
@@ -61,7 +61,7 @@ export default function MenuPage() {
         {
             title: 'Acadêmico',
             items: [
-                { label: 'Cronograma', icon: Clock, path: '/cronograma', disabled: !hasModule('academic') },
+                { label: 'Atividades', icon: Clock, path: '/cronograma', disabled: !hasModule('academic') },
                 { label: 'Agenda', icon: Calendar, path: '/agenda', disabled: !hasModule('academic') },
                 { label: 'Cardápio', icon: UtensilsCrossed, path: '/cardapio', disabled: !hasModule('menu') },
                 { label: 'Diário de Classe', icon: BookOpen, path: '/diario', disabled: !hasModule('academic') },
@@ -70,9 +70,15 @@ export default function MenuPage() {
             ]
         },
         {
+            title: 'Atendimento',
+            items: [
+                { label: 'Mensagens', icon: MessageCircle, path: '/chat', disabled: !hasModule('chat'), badge: (alerts.chat && alerts.chat > 0) ? `${alerts.chat}` : undefined },
+            ]
+        },
+        {
             title: 'Comunicação',
             items: [
-                { label: 'Mensagens', icon: MessageCircle, path: '/comunicados', disabled: !hasModule('communications'), badge: alerts.messages > 0 ? `${alerts.messages}` : undefined },
+                { label: 'Comunicados', icon: FileText, path: '/comunicados', disabled: !hasModule('communications'), badge: alerts.messages > 0 ? `${alerts.messages}` : undefined },
             ]
         },
         {
@@ -148,15 +154,20 @@ export default function MenuPage() {
 
                                 if (item.disabled || !item.path) {
                                     return (
-                                        <div
+                                        <button
                                             key={itemIdx}
+                                            onClick={() => {
+                                                if (item.disabled && item.path === '/chat') {
+                                                    window.alert("Módulo Inativo: O atendimento via chat não está habilitado para esta escola.");
+                                                }
+                                            }}
                                             className={`
-                                                flex items-center gap-4 p-4 transition-colors text-left cursor-not-allowed opacity-50
+                                                flex items-center w-full gap-4 p-4 transition-colors text-left cursor-not-allowed opacity-50
                                                 ${itemIdx !== group.items.length - 1 ? 'border-b border-slate-50' : ''}
                                             `}
                                         >
                                             <ItemContent />
-                                        </div>
+                                        </button>
                                     );
                                 }
 

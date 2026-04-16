@@ -111,7 +111,7 @@ export default function AgendaPage() {
                         <div className="p-2.5 bg-brand-100 rounded-xl text-brand-600">
                             <Calendar className="w-6 h-6" />
                         </div>
-                        <h2 className="text-xl font-bold text-gray-800">Cronograma Escolar</h2>
+                        <h2 className="text-xl font-bold text-gray-800">Atividades</h2>
                     </div>
 
                     <div className="flex items-center gap-1 bg-gray-50 p-1 rounded-lg border border-gray-100">
@@ -140,7 +140,7 @@ export default function AgendaPage() {
             {enrollmentLoading || plansLoading ? (
                 <div className="py-20 text-center">
                     <div className="animate-spin w-8 h-8 border-4 border-brand-600 border-t-transparent rounded-full mx-auto mb-4"></div>
-                    <p className="text-gray-500 font-medium">Carregando cronograma...</p>
+                    <p className="text-gray-500 font-medium">Carregando atividades...</p>
                 </div>
             ) : !enrollment ? (
                 <div className="bg-white p-12 rounded-3xl shadow-sm border border-gray-100 text-center">
@@ -166,7 +166,7 @@ export default function AgendaPage() {
                                 <div className="divide-y divide-gray-100 bg-white">
                                     {dayPlans.length === 0 ? (
                                         <div className="p-4 text-center text-gray-400 text-sm italic">
-                                            Nenhuma aula planejada
+                                            Nenhuma atividade planejada
                                         </div>
                                     ) : (
                                         dayPlans.map((plan: any) => (
@@ -289,7 +289,7 @@ export default function AgendaPage() {
                                         </div>
                                     </div>
                                     <div className="flex-1">
-                                        <h3 className="text-sm font-bold text-gray-900 mb-1">Tópico da Aula</h3>
+                                        <h3 className="text-sm font-bold text-gray-900 mb-1">Tópico da Atividade</h3>
                                         <p className="text-gray-600 text-sm leading-relaxed">{selectedPlan.topic}</p>
                                     </div>
                                 </div>

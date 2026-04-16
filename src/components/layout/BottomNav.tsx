@@ -38,9 +38,11 @@ export const BottomNav = () => {
         setPendingPath(path);
     };
 
-    // Hide BottomNav on communication detail pages
-    const isDetailPage = pathname.includes('/comunicados/') && pathname.split('/').length > 2;
-    if (isDetailPage) return null;
+    // Hide BottomNav on communication detail pages and all chat routes
+    const isComunicadoDetail = pathname.includes('/comunicados/') && pathname.split('/').length > 2;
+    const isChatRoute = pathname.startsWith('/chat');
+
+    if (isComunicadoDetail || isChatRoute) return null;
 
     return (
         <AnimatePresence>

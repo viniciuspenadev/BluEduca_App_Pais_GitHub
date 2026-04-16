@@ -15,6 +15,7 @@ export interface Student {
     enrollment_id: string;
     class_id?: string;
     school_id?: string;
+    config_modules?: Record<string, boolean>;
 }
 
 interface StudentContextType {
@@ -56,7 +57,7 @@ export const StudentProvider = ({ children, initialUser }: { children: ReactNode
                     // Try to get current year enrollment first (Performance optimization)
                     const { data: enrollment } = await supabase
                         .from('enrollments')
-                        .select('id, academic_year, school_id')
+                        .select('id, academic_year, school_id, schools(config_modules)')
                         .eq('student_id', link.student_id)
                         .eq('status', 'approved')
                         .order('academic_year', { ascending: false })
@@ -91,7 +92,8 @@ export const StudentProvider = ({ children, initialUser }: { children: ReactNode
                         academic_year: enrollment.academic_year,
                         enrollment_id: enrollment.id,
                         class_id: classEnrollment?.class_id,
-                        school_id: enrollment.school_id
+                        school_id: enrollment.school_id,
+                        config_modules: (enrollment.schools as any)?.config_modules || {}
                     };
                 })
             );

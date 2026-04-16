@@ -1,13 +1,13 @@
 'use client'
 
-import { useState, useTransition, useEffect } from 'react';
+import { useState, useTransition, useEffect, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { Loader2, Mail, Lock, Eye, EyeOff } from 'lucide-react';
 import Image from 'next/image';
 import { ToastContainer, type ToastMessage } from '@/components/ui/Toast';
 import { login } from './actions';
 
-export default function LoginPage() {
+function LoginForm() {
     const searchParams = useSearchParams();
     const errorParam = searchParams?.get('error');
     const [isPending, startTransition] = useTransition();
@@ -193,5 +193,13 @@ export default function LoginPage() {
                 </div>
             </div>
         </div>
+    );
+}
+
+export default function LoginPage() {
+    return (
+        <Suspense fallback={<div className="min-h-screen flex items-center justify-center bg-gray-50"><Loader2 className="w-8 h-8 animate-spin text-brand-600" /></div>}>
+            <LoginForm />
+        </Suspense>
     );
 }
